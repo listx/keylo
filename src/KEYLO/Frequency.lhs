@@ -11,12 +11,16 @@ import Data.List
 import qualified Data.Map.Strict as M
 import Data.Ord (comparing)
 import qualified Data.Text.Lazy as T
-import Data.Word
+import Data.Word hiding (Word)
+import Prelude hiding (Word)
 import qualified Text.Printf as TP
 
+type FreqMax = Word64
+type Bigram = T.Text
+type Word = T.Text
 type HashL = M.Map Char Word64
-type HashB = M.Map T.Text Word64
-type HashW = M.Map T.Text Word64
+type HashB = M.Map Bigram Word64
+type HashW = M.Map Word Word64
 \end{code}
 
 \ct{freqL} finds letter frequency.
@@ -123,4 +127,15 @@ dispFreq limit hash = mapM_ f
 		m1 = show k ++ " = "
 		m2 = TP.printf "%.2f%%" perc
 		m3 = " (" ++ show n ++ " occurrences)"
+\end{code}
+
+\ct{findMaxVal} finds the maximum value of a hash of numeric values.
+
+\begin{code}
+findMaxVal :: (Ord b, Num b) => M.Map a b -> b
+findMaxVal = M.foldl' step 0
+	where
+	step acc v = if v > acc
+		then v
+		else acc
 \end{code}

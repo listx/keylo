@@ -1,0 +1,74 @@
+\documentclass[letterpaper,twoside,12pt]{article}
+\usepackage[vmargin=1in,hmargin=1in]{geometry}
+\usepackage[titles]{tocloft}
+
+% make XeTeX work properly with the \- (discretionary intraword hyphen),
+% \textsuperscript, and \textsubscript commands (also loads the 'xunicode'
+% package and other packages to make XeTeX work better; it also loads the
+% 'fontspec' package)
+\usepackage{xltxtra}
+
+% import predefined colors
+\usepackage[x11names]{xcolor}
+
+% shortcut command for footnotes
+\newcommand*\fn[1]{\footnote{#1}}
+
+% NOTE: Cannot use minted as it cuts off long listings! Ouch.
+%\usepackage{minted}
+%\newenvironment{code}{%
+%\begin{minted}[bgcolor=Ivory2,firstnumber=last,linenos=true]{haskell}}
+%{\end{minted}}
+
+% Instead, we use the verbments package.
+\usepackage{verbments}
+\newenvironment{code}%
+{\pyglist}
+{\endpyglist}
+
+\usepackage{enumitem}
+
+\renewcommand*\oldstylenums{\addfontfeature{Numbers={OldStyle}}}
+\newcommand*\ct[1]{\texttt{\color{DeepPink3}#1}}
+\setromanfont[Mapping=tex-text,Ligatures=Common]{Charis SIL}
+\setsansfont[Mapping=tex-text,Ligatures=Common,Scale=0.8]{DejaVu Sans Condensed}
+\setmonofont[Scale=0.8]{DejaVu Sans Mono}
+
+% intra-document hyperlinks
+\usepackage[colorlinks,linkcolor=blue]{hyperref}
+\usepackage[all]{hypcap}
+
+\begin{document}
+\title{The \texttt{keylo} Source Manual}
+\author{Linus Arver\\
+\\
+ver. \href{http://www.github.com/listx/keylo/commit/GIT-COMMIT-HASH}{\texttt{GIT-COMMIT-DESC}}
+}
+\date{\texttt{GIT-COMMIT-DATE}}
+\maketitle
+\tableofcontents
+
+% ``enumerate'' package: disable vertical spacing in default 'enumerate' and
+% 'itemize' environments. 'nosep' is another possible option. See
+% http://tex.stackexchange.com/questions/10684/vertical-space-in-lists.
+\setlist{noitemsep}
+
+\plset{language=haskell}
+\plset{bgcolor=Ivory2}
+\fvset{tabsize=4}
+
+\input{intro.tex}
+\input{../src/keylo.lhs}
+\input{../src/KEYLO/Option.lhs}
+\input{../src/KEYLO/Generate.lhs}
+\input{../src/KEYLO/Layout.lhs}
+\input{../src/KEYLO/Util.lhs}
+\input{../src/KEYLO/Meta.lhs}
+
+%\input{../src/keylo.lhs.txt}
+%\input{../src/KEYLO/Option.lhs.txt}
+%\input{../src/KEYLO/Generate.lhs.txt}
+%\input{../src/KEYLO/Layout.lhs.txt}
+%\input{../src/KEYLO/Util.lhs.txt}
+%\input{../src/KEYLO/Meta.lhs.txt}
+\end{document}
