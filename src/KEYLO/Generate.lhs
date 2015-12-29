@@ -1,21 +1,28 @@
 \section{KEYLO/Generate.lhs}
 
 \begin{code}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module KEYLO.Generate where
 
 import Control.Monad
+import Data.Data
 import qualified Data.Map.Strict as M
 import Data.Maybe
 import qualified Data.Text.Lazy as T
 import qualified Data.Vector as V
 import System.Random.PCG
+import System.Random.PCG.Class
 
 import KEYLO.Frequency
 import KEYLO.Layout
+
+data Algorithm
+	= ARandom
+	| ASimAnneal
+	deriving (Data, Eq, Show, Typeable)
 
 data KLSearchCtx = KLSearchCtx
 	{ klscConstraints :: Constraints
@@ -31,14 +38,6 @@ instance Show KLSearchCtx where
 		[ show klscKLayout
 		, "energy (penalty): " ++ show (energy klsc)
 		]
-
-genLayout :: Int -> KLSearchCtx -> IO KLSearchCtx
-genLayout n klsc0 = do
-	rng <- create
-	klsc1@KLSearchCtx{..} <- anneal klsc0 n rng
-	return $ klsc1
-		{ klscKLayout = syncKLayout klscKLayout
-		}
 \end{code}
 
 \ct{genLayoutFinger}'s \ct{pkeyRank} is probably the most important of all.
@@ -89,20 +88,16 @@ instance Annealable KLSearchCtx where
 	mutate klsc@KLSearchCtx{..} rng = do
 		let
 			KLayout{..} = klscKLayout
-			iRange = (0, klSizeVisible - 1)
-		i <- uniformR iRange rng
-		j <- getExcept i iRange rng
+			visibleRange = (0, klSizeVisible - 1)
+		i <- uniformR visibleRange rng
+		j <- uniformR' visibleRange (V.fromList [i]) rng
 		return $ klsc
 			{ klscKLayout = klscKLayout
 				{ klLayout = swapIdx i j klLayout
 				}
 			}
 	energy KLSearchCtx{..} = penalizeBigrams klscFreqB klscKLayout
-\end{code}
 
-NOTE: \ct{getExcept} is dumb and ay lead to an infinite loop given the wrong kind of inputs!
-
-\begin{code}
 penalizeFinger :: Finger -> Penalty
 penalizeFinger f = case f of
 	FPinky -> 3
@@ -181,13 +176,22 @@ swapIdx i j v = V.update v (V.fromList [(i, jVal), (j, iVal)])
 	where
 	iVal = v V.! i
 	jVal = v V.! j
+\end{code}
 
-getExcept :: Int -> (Int, Int) -> GenIO -> IO Int
-getExcept i (a, b) rng = do
-	j <- uniformR (a, b) rng
-	if i /= j
-		then return j
-		else getExcept i (a, b) rng
+\ct{uniformR'} is like \ct{uniformR}, but rolls again if the retrieved random number is in the given list (a blacklist of values). Note that it is dumb and ay lead to an infinite loop given an overly aggressive blacklist!
+
+\begin{code}
+uniformR'
+	:: (Eq a, Variate a, Generator g m)
+	=> (a, a)
+    -> V.Vector a
+    -> g
+    -> m a
+uniformR' (a, b) xs rng = do
+	c <- uniformR (a, b) rng
+	if V.elem c xs
+		then uniformR' (a, b) xs rng
+		else return c
 
 type TimeMax = Int
 type TimeCur = Int
@@ -208,8 +212,7 @@ annealStep rng st0 t = do
 		e2 = energy st1
 		shouldMutate = probability e1 e2 t > r
 	if shouldMutate
-		then do
-			return st1
+		then return st1
 		else return st0
 	where
 	e1 = energy st0
@@ -221,4 +224,24 @@ temperature tMax tCur = 50.0 * exp (0.0 - (5.0 * currentRatio))
 
 probability :: Energy -> Energy -> Temperature -> Probability
 probability e1 e2 t = exp (fromIntegral (e1 - e2) / t)
+\end{code}
+
+\ct{randSearch} is like \ct{anneal} as it has the same type signature, but it is a simple random search.
+
+\begin{code}
+randSearch :: (Show a, Annealable a) => a -> TimeMax -> GenIO -> IO a
+randSearch st tMax rng
+	= foldM (randStep rng) st [1..tMax]
+
+randStep :: (Show a, Annealable a) => GenIO -> a -> Int -> IO a
+randStep rng st0 _ = do
+	st1 <- mutate st0 rng
+	let
+		e2 = energy st1
+		shouldMutate = e1 > e2
+	if shouldMutate
+		then return st1
+		else return st0
+	where
+	e1 = energy st0
 \end{code}

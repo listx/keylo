@@ -11,6 +11,7 @@ import qualified Data.Text.Lazy.IO as T
 import System.Environment
 import System.Exit
 import System.IO
+import System.Random.PCG
 
 import KEYLO.Frequency
 import KEYLO.Generate
@@ -31,7 +32,7 @@ main = do
 	keylo opts'
 
 keylo :: Opts -> IO ()
-keylo Opts{..} = do
+keylo opts@Opts{..} = do
 	fileList <- T.readFile corpus
 	src <- liftM T.concat . mapM (T.readFile . T.unpack) $ T.lines fileList
 	let
@@ -56,10 +57,22 @@ keylo Opts{..} = do
 	ruler
 	putStrLn $ show klsc
 	ruler
-	optimized <- genLayout time klsc
+	optimized <- genLayout opts klsc
 	putStrLn "optimized"
 	ruler
 	putStrLn $ show optimized
 	where
 	ruler = putStrLn $ replicate 80 '-'
+\end{code}
+
+\begin{code}
+genLayout :: Opts -> KLSearchCtx -> IO KLSearchCtx
+genLayout Opts{..} klsc0 = do
+	rng <- createSystemRandom
+	klsc1@KLSearchCtx{..} <- case algorithm of
+		ARandom -> randSearch klsc0 time rng
+		ASimAnneal -> anneal klsc0 time rng
+	return $ klsc1
+		{ klscKLayout = syncKLayout klscKLayout
+		}
 \end{code}

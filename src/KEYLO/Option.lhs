@@ -10,20 +10,24 @@ import Data.Maybe
 import System.Console.CmdArgs.Implicit
 import System.Directory
 
+import KEYLO.Generate
 import KEYLO.Meta
 import KEYLO.Util
 
 data Opts = Opts
-	{ corpus :: FilePath
+	{ algorithm :: Algorithm
+	, corpus :: FilePath
 	, time :: Int
 	} deriving (Data, Typeable, Show, Eq)
 
 optsDefault :: Opts
 optsDefault = Opts
-	{ corpus = "" &= typFile
-		&= help "location of the master password database file"
-	, time = 1000
-		&= help "length of iterations to run the annealing process; the longer it is the more accurate; default 1000"
+	{ algorithm = ASimAnneal &= help
+		""
+	, corpus = "" &= typFile &= help
+		"location of the master password database file"
+	, time = 1000 &= help
+		"length of iterations to run the annealing process; the longer it is the more accurate; default 1000"
 	}
 \end{code}
 
