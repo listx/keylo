@@ -110,6 +110,13 @@ penalizeFinger f = case f of
 	FMiddle -> 0
 	FIndex -> 1
 	FThumb -> 4
+\end{code}
+
+\ct{penalizeColRow} penalizes key distance.
+
+\begin{code}
+penalizeColRow :: ColRow -> Penalty
+penalizeColRow (c, r) = 2 * abs c * abs r
 
 penalizeBigrams :: (HashB, FreqMax) -> KLayout -> Penalty
 penalizeBigrams hf@(h, _) kl = M.foldlWithKey' step 0 h
@@ -138,7 +145,9 @@ penalizeBigram (h, freqMax) bigram kl@KLayout{..} = case M.lookup bigram h of
 		+ penaltyFingerSame
 	penaltyFingerBase c = fromMaybe 0 $ do
 		KeyAtom{..} <- getKeyAtom kl c
-		return $ kaPenalty + (penalizeFinger kaFinger)
+		return $ kaPenalty
+			+ penalizeFinger kaFinger
+			+ penalizeColRow kaColRow
 	penaltyFingerSame
 		| char0 == char1 = penaltyFingerBase char0
 		| otherwise = 0
