@@ -104,12 +104,12 @@ freqW blist = foldl step M.empty . T.words
 			then hashW
 			else M.insertWith (+) w' 1 hashW
 		where
-		w' = T.filter isWordLetter $ T.toLower w
+		w' = T.filter isAlpha $ T.toLower w
 
 isWordLetter :: Char -> Bool
 isWordLetter c = or
 	[ isAlpha c
-	, elem c puncKeysAll
+--	, elem c puncKeysAll
 	]
 
 sameLetters :: String -> Bool
