@@ -67,12 +67,12 @@ E.g., the word ``food'' has 3 bigrams --- ``fo'', ``oo'', and ``od''.
 freqB :: HashW -> HashB
 freqB = M.foldlWithKey step M.empty
 	where
-	step hashB w _ = case T.length w of
+	step hashB w n = case T.length w of
 		0 -> error "OOPS! HashW included a zero-length word"
 		1 -> hashB
-		2 -> M.insertWith (+) w 1 hashB
-		_ -> foldl insertBigrams hashB $ bigrams w
-	insertBigrams hashB' bigram = M.insertWith (+) bigram 1 hashB'
+		2 -> M.insertWith (+) w n hashB
+		_ -> foldl (insertBigrams n) hashB $ bigrams w
+	insertBigrams n hashB' bigram = M.insertWith (+) bigram n hashB'
 
 bigrams :: T.Text -> [T.Text]
 bigrams word = map (\(a, b) -> T.cons a $ T.cons b T.empty)
