@@ -33,30 +33,8 @@ freqL :: T.Text -> HashL
 freqL = T.foldl step M.empty
 	where
 	step hashL c
-		| isAlpha c = M.insertWith (+) (toLower c) 1 hashL
-		| elem c puncKeysAll = case lookup c puncTuples of
-			Just pkey -> M.insertWith (+) pkey 1 hashL
-			Nothing -> hashL
+		| isAlphabet c = M.insertWith (+) (toLower c) 1 hashL
 		| otherwise = hashL
-	puncTuples = concatMap (\keyPair -> [(head keyPair, head keyPair), (last keyPair, head keyPair)]) puncKeys
-
-puncKeysAll :: String
-puncKeysAll = concat puncKeys
-
-puncKeys :: [String]
-puncKeys =
-	[ "`~"
-	, "-_"
-	, "=+"
-	, "[{"
-	, "}]"
-	, "\\|"
-	, ";:"
-	, "'\""
-	, ",<"
-	, ".>"
-	, "/?"
-	]
 \end{code}
 
 \ct{freqB} calculates bigram frequency.
@@ -104,13 +82,10 @@ freqW blist = foldl step M.empty . T.words
 			then hashW
 			else M.insertWith (+) w' 1 hashW
 		where
-		w' = T.filter isAlpha $ T.toLower w
+		w' = T.filter isAlphabet $ T.toLower w
 
-isWordLetter :: Char -> Bool
-isWordLetter c = or
-	[ isAlpha c
---	, elem c puncKeysAll
-	]
+isAlphabet :: Char -> Bool
+isAlphabet = flip elem $ ['a'..'z'] ++ ['A'..'Z']
 
 sameLetters :: String -> Bool
 sameLetters xs = all (== head xs) xs
