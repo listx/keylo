@@ -6,6 +6,7 @@
 module Main where
 
 import Control.Monad
+import qualified Data.Map.Strict as M
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 import System.Environment
@@ -34,6 +35,7 @@ main = do
 keylo :: Opts -> IO ()
 keylo opts@Opts{..} = do
 	fileList <- T.readFile corpus
+	blacklistWords <- T.readFile blacklist
 	src <- liftM T.concat . mapM (T.readFile . T.unpack) $ T.lines fileList
 	let
 		klsc = KLSearchCtx
@@ -46,7 +48,9 @@ keylo opts@Opts{..} = do
 			}
 		hashL = freqL src
 		hashB = freqB hashW
-		hashW = freqW src
+		hashW = freqW
+			(M.fromList . zip (concatMap T.words $ T.lines blacklistWords) $ repeat True)
+			src
 	dispFreq 100 hashL
 	ruler
 	dispFreq 100 hashB

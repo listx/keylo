@@ -21,6 +21,7 @@ type Word = T.Text
 type HashL = M.Map Char Word64
 type HashB = M.Map Bigram Word64
 type HashW = M.Map Word Word64
+type WordBlacklist = M.Map T.Text Bool
 \end{code}
 
 \ct{freqL} finds letter frequency.
@@ -90,13 +91,18 @@ The first step is necessary because we do not want to store multiple versions, c
 It must come first before the other steps because sometimes lowercasing a word results in a longer string, according to the documentation for \ct{Data.Text.Lazy.toLower}.
 The second and third steps combine into one step with \ct{Data.Text.Lazy.filter}.
 
+We explicitly exclude words that are present in the blacklist, or are simply repeitions of a single letter (for words of length 2 or greater).
+
 \begin{code}
-freqW :: T.Text -> HashW
-freqW = foldl step M.empty . T.words
+freqW :: WordBlacklist -> T.Text -> HashW
+freqW blist = foldl step M.empty . T.words
 	where
 	step hashW w
 		| T.length w' == 0 = hashW
-		| otherwise = M.insertWith (+) w' 1 hashW
+		| T.length w' > 1 && sameLetters (T.unpack w') = hashW
+		| otherwise = if M.member w blist
+			then hashW
+			else M.insertWith (+) w' 1 hashW
 		where
 		w' = T.filter isWordLetter $ T.toLower w
 
@@ -105,6 +111,9 @@ isWordLetter c = or
 	[ isAlpha c
 	, elem c puncKeysAll
 	]
+
+sameLetters :: String -> Bool
+sameLetters xs = all (== head xs) xs
 \end{code}
 
 \ct{dispFreq} takes any hash with \ct{Show}-able keys and integer values, and prints out each key's percentage.

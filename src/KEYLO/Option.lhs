@@ -16,6 +16,7 @@ import KEYLO.Util
 
 data Opts = Opts
 	{ algorithm :: Algorithm
+	, blacklist :: FilePath
 	, corpus :: FilePath
 	, time :: Int
 	} deriving (Data, Typeable, Show, Eq)
@@ -24,8 +25,10 @@ optsDefault :: Opts
 optsDefault = Opts
 	{ algorithm = ASimAnneal &= help
 		""
+	, blacklist = "" &= typFile &= help
+		"location of the file containing words not considered as part of the corpus"
 	, corpus = "" &= typFile &= help
-		"location of the master password database file"
+		"localtion of the file that lists other files of raw text, one on each line"
 	, time = 1000 &= help
 		"length of iterations to run the annealing process; the longer it is the more accurate; default 1000"
 	}
@@ -51,9 +54,11 @@ Check for errors, and return an error code (a positive number) if any errors are
 argsCheck :: Opts -> IO (Opts, Int)
 argsCheck opts = do
 	corpus_file_not_exists <- fmap not $ doesFileExist (corpus opts)
+	blacklist_file_not_exists <- fmap not $ doesFileExist (blacklist opts)
 	let
 		ioChecksHash =
 			[ ("corpus_file_not_exists", corpus_file_not_exists)
+			, ("blacklist_file_not_exists", blacklist_file_not_exists)
 			]
 	return . (,) opts =<< argsCheck' opts ioChecksHash
 	where
@@ -61,6 +66,9 @@ argsCheck opts = do
 	argsCheck' Opts{..} ich
 		| fromMaybe True (lookup "corpus_file_not_exists" ich) = do
 			errMsg $ "file" ++ enclose' sQuotes corpus ++ " does not exist"
+			return 1
+		| fromMaybe True (lookup "blacklist_file_not_exists" ich) = do
+			errMsg $ "file" ++ enclose' sQuotes blacklist ++ " does not exist"
 			return 1
 		| time < 1 = do
 			errMsg "--time cannot be less than 1"
