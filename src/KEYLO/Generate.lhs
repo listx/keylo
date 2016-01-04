@@ -245,3 +245,18 @@ randStep rng st0 _ = do
 	where
 	e1 = energy st0
 \end{code}
+
+\ct{shuffle} is the famous \href{https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle}{Fisher-Yates shuffle}.
+
+\begin{code}
+shuffle :: V.Vector a -> GenIO -> IO (V.Vector a)
+shuffle vector rng
+	= V.foldM step vector
+	. V.fromList
+	$ reverse [1..(V.length vector - 1)]
+	where
+	step :: V.Vector a -> Int -> IO (V.Vector a)
+	step v i = do
+		j <- uniformR (0, i) rng
+		return $ V.unsafeUpd v [(i, v V.! j), (j, v V.! i)]
+\end{code}
