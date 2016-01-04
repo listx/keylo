@@ -24,7 +24,7 @@ data Finger
 	| FMiddle
 	| FIndex
 	| FThumb
-	deriving (Eq, Ord)
+	deriving (Eq, Ord, Show)
 
 data Hand
 	= HandL
@@ -107,7 +107,8 @@ The \ct{kaColRow} is used purely for the geometric representation of the key whe
 This penalty is used later when we want to compare keys that are all assigned to the same finger, for instance.
 
 \begin{code}
-type KeyAtomRaw = (Int, Int, KeyName, Int)
+type KeyAtomRaw = (Col, Row, KeyName, Penalty)
+type KeyboardAtomRawSingle = (HFinger, KeyAtomRaw)
 type KeyboardAtomRaw = (HFinger, [KeyAtomRaw])
 type KeyboardRaw = [KeyboardAtomRaw]
 data KeyAtom = KeyAtom
@@ -115,7 +116,7 @@ data KeyAtom = KeyAtom
 	, kaFinger :: Finger
 	, kaColRow :: ColRow
 	, kaPenalty :: Penalty
-	}
+	} deriving (Show)
 data KLayout = KLayout
 	{ klName :: String
 	, klLayout :: V.Vector KeyName
@@ -140,9 +141,11 @@ keyboardVerify KLayout{..}
 	| length klName == 0 = Just "KeyboardName cannot be blank"
 	| otherwise = Nothing
 
-expandBySnd :: (a, [b]) -> [(b, a)]
-expandBySnd (a, bs) = map (flip (,) a) bs
+expandBySnd :: (a, [b]) -> [(a, b)]
+expandBySnd (a, bs) = map ((,) a) bs
 
+unzipSame :: [(a, a)] -> [a]
+unzipSame = concatMap (\(l, r) -> [l, r])
 type Penalty = Int
 
 syncKLayout :: KLayout -> KLayout
@@ -160,21 +163,6 @@ layoutKeyboardToRaw as bs
 	step acc (name, KeyAtom{..}) = ((kaHand, kaFinger), [(c, r, name, kaPenalty)]) : acc
 		where
 		(c, r) = kaColRow
-\end{code}
-
-\ct{revSortByKeyName} sorts by the name of the key, but in reverse.
-The reversal is necessary because we want the non-named keys to be listed \textit{last}, not first.
-This way, we can have a nice contiguous vector of ``filled'' elements at the front, allowing us to easily choose a random number somewhere along these indices later when we want to mutate them.
-
-\begin{code}
-revSortByKeyName :: [(KeyAtomRaw, HFinger)] -> [(KeyAtomRaw, HFinger)]
-revSortByKeyName xs = rest ++ moveMe
-	where
-	ys = sortBy revCompName xs
-	revCompName ((_, _, name0, _), _) ((_, _, name1, _), _)
-		= compare name1 name0
-	(moveMe, rest) = span moveNonLetters ys
-	moveNonLetters ((_, _, name, _), _) = elem name $ map (:[]) nonLetters
 
 nisse :: KLayout
 nisse = KLayout
@@ -192,13 +180,11 @@ nisse = KLayout
 		| length xs /= length ys = error "xs/ys length mismatch"
 		| otherwise = length xs - 1
 	keyNames
-		= map (\((_, _, name, _), _) -> name)
-		. revSortByKeyName
-		$ concatMap expandBySnd nisseKeys
+		= map (\(_, (_, _, name, _)) -> name)
+		$ sortByVisiblesAndPenalty nisseKeys
 	keyAtoms
-		= map (\((c, r, _, p), (h, f)) -> KeyAtom h f (c, r) p)
-		. revSortByKeyName
-		$ concatMap expandBySnd nisseKeys
+		= map (\((h, f), (c, r, _, p)) -> KeyAtom h f (c, r) p)
+		$ sortByVisiblesAndPenalty nisseKeys
 	nisseKeys =
 		[
 			( (HandL, FPinky)
@@ -287,6 +273,69 @@ nisse = KLayout
 		where
 		x = ""
 		q = succ '!' : []
+\end{code}
+
+We want to prepare our data structure so that it is easier to mutate in a sane manner.
+There are two requirements here:
+\begin{enumerate}
+	\item{sort the keys so that the mutatable ones (non-blacklisted) make up a contiguous span in a list, and}
+	\item{within this contiguous list, sort the keys by importance (easiest to press)}
+\end{enumerate}
+.
+This way, we don't have to do any fancy sorting or manipulation during the course of the simulated annealing process.
+The first requirement allows us to easily choose the range of mutatable indices (imagine the difficulty if we had ``holes'' and had to choose from multiple ranges).
+The second requirement helps us classify which mutated keys are ``good'', based on letter frequency and the ease with which we can press the key; we can use this information to encourage our future mutations to try avoiding the good keys.
+Both steps are accomplished by \ct{sortVisiblesByPenalty}.
+
+Note that there is a wrinkle in the 2\textsuperscript{nd} step.
+It may be that two keys could have the same penalty for ease of use --- possibly on the same hand.
+To prevent this, we alternate between the left hand and right hand; this is what \ct{a1} basically does.
+
+\label{sortByVisiblesAndPenalty}
+\subsection{hoola}
+\begin{code}
+sortByVisiblesAndPenalty :: KeyboardRaw -> [KeyboardAtomRawSingle]
+sortByVisiblesAndPenalty kr0 = a1 ++ b
+	where
+	a1 = alternateKeys a1l a1r
+	a1l = sortBy compPenalty a0l
+	a1r = sortBy compPenalty a0r
+	compPenalty ((_, f0), (_, _, _, p0)) ((_, f1), (_, _, _, p1))
+		| pen0 == pen1 = compare (penalizeFinger f0) (penalizeFinger f1)
+		| otherwise = compare pen0 pen1
+		where
+		pen0 = p0 + penalizeFinger f0
+		pen1 = p1 + penalizeFinger f1
+	(a0l, a0r) = partition (\kar -> handIs HandL kar) a0
+	handIs :: Hand -> KeyboardAtomRawSingle -> Bool
+	handIs hand ((h, _), _) = hand == h
+	(a0, b) = partition (\(_, (_, _, name, _)) -> elem name letterNames) kr1
+	kr1 = concatMap expandBySnd kr0
+	letterNames = map (:[]) ['a'..'z']
+\end{code}
+
+\ct{zipKeys} is necessary because it may be the case that two hands have an unequal number of letter-based keys.
+If we simply zipped them together with \ct{zip}, the extra keys on one hand would disappear!
+
+\begin{code}
+
+alternateKeys :: [a] -> [a] -> [a]
+alternateKeys xs ys
+	| length xs > length ys = alternateKeys ys xs
+	| length xs == length ys = unzipSame $ zip xs ys
+	| otherwise = reverse $ foldl step [] $ zip [0..] ys
+	where
+	step acc (idx, y)
+		| idx > (length xs - 1) = y : acc
+		| otherwise = y : xs!!idx : acc
+
+penalizeFinger :: Finger -> Penalty
+penalizeFinger f = case f of
+	FPinky -> 3
+	FRing -> 2
+	FMiddle -> 0
+	FIndex -> 1
+	FThumb -> 4
 \end{code}
 
 We need a way of showing \ct{KLayout} in a human-friendly way.

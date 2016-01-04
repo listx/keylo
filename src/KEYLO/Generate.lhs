@@ -11,9 +11,13 @@ module KEYLO.Generate where
 import Control.Monad
 import Data.Data
 import qualified Data.Map.Strict as M
+import Data.List
 import Data.Maybe
 import qualified Data.Text.Lazy as T
 import qualified Data.Vector as V
+import Data.Word hiding (Word)
+import Safe
+import Safe.Exact
 import System.Random.PCG
 import System.Random.PCG.Class
 
@@ -90,18 +94,16 @@ instance Annealable KLSearchCtx where
 		swaps <- genSwaps rng
 		let
 			KLayout{..} = klscKLayout
-			visibleRange = (0, klSizeVisible - 1)
-		l <- V.foldM (step visibleRange) klLayout $ V.fromList [1..swaps]
+		l <- foldM step klLayout [1..swaps]
 		return $ klsc
 			{ klscKLayout = klscKLayout
 				{ klLayout = l
 				}
 			}
 		where
-		step :: (Int, Int) -> V.Vector KeyName -> Int -> IO (V.Vector KeyName)
-		step range x _ = do
-			i <- uniformR range rng
-			j <- uniformR' range (V.fromList [i]) rng
+		step :: V.Vector KeyName -> Int -> IO (V.Vector KeyName)
+		step x _ = do
+			(i, j) <- getRandIndices klsc rng
 			return $ swapIdx i j x
 	energy KLSearchCtx{..} = penalizeBigrams klscFreqB klscKLayout
 \end{code}
@@ -109,21 +111,137 @@ instance Annealable KLSearchCtx where
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
 The idea is to get some additional variability in the mutations.
 
+\ct{getRandIndices} is important in simulating the idea of natural selection.
+The idea is to encourage the algorithm to keep the good keys and try to swap the bad keys (if our mutations are highly volatile, where we swap well-placed key away from its position, our search is as good as random search).
+Key desirability is quite simple: we sort each key by letter frequency (available from \ct{HashL}).
+We then zip these with the most desirable key positions, by a combination of base finger and column/row penalty (this is actually done beforehand by \ct{sortByVisiblesAndPenalty} in Section~\ref{sortByVisiblesAndPenalty}).
+But since we don't always want to select the exact same lowest-ranked key all the time, we use some randomness in selecting the indices to swap.
+The way we do it is assign each index a score, based on how nicely the letter (frequency score) is matched to the index position (key position is already sorted by base finger penalty by \ct{sortByVisiblesAndPenalty}).
+The higher the score, the greater the likelihood of it being selected.
+
+NOTE: \ct{hFreqL} is 26 elements big because its membership is guarded by \ct{isAlphabet} in Section~\ref{letterFreq}.
+Still, we double-check just in case.
+
+\ct{placementPenalty} is what really matters.
+It is calculated as
+\begin{equation}
+\mathrm{placement\  penalty} = \mathrm{penalty} - \mathrm{frequency}
+\end{equation}
+
+.
+The \textbf{frequency} term must be in terms of a percentage to keep it from becoming a runaway growing number where we use a larger corpus with more raw frequency counts.
 \begin{code}
+getRandIndices :: KLSearchCtx -> GenIO -> IO (Int, Int)
+getRandIndices KLSearchCtx{..} rng = do
+	r1 <- uniformR (0, penMax - 1) rng
+	let
+		((rangeStart, rangeEnd), i) = unsafeGetIdx r1 penRanges
+	r2 <- uniformR' (0, penMax - 1) (V.fromList [rangeStart..rangeEnd]) rng
+	let
+		(_, j) = unsafeGetIdx r2 penRanges
+	return (i, j)
+	where
+	unsafeGetIdx k ranges = case lookupRanges k ranges of
+		Just ri -> ri
+		Nothing -> error "oops"
+	(hFreqL, freqMax) = klscFreqL
+	visibleSize = klSizeVisible klscKLayout
+	hFreqL'
+		| M.size hFreqL /= visibleSize = error "invalid hFreqL size"
+		| otherwise = hFreqL
+	penMax = sum $ map fst mostDesirables
+	penRanges = mkRanges mostDesirables
+	mostDesirables :: [(Penalty, Int)]
+	mostDesirables
+		= (\(ps, is) -> zip (normalizePenalties ps) is)
+		. unzip
+		. foldl step []
+		. zip [0..]
+		. take visibleSize
+		. V.toList
+		$ klLayout klscKLayout
+	step acc (idx, keyName) = (placementPenalty idx keyName, idx) : acc
+	placementPenalty idx str = pen - freqPerc
+		where
+		freq :: Word64
+		freq = fromMaybe 0 $ M.lookup char hFreqL'
+		freqPerc
+			= floor
+			$ ((fromIntegral freq) / (fromIntegral freqMax :: Double)) * 100000
+		ka = (klKeyboard klscKLayout) V.! idx
+		pen = penaltyAtom ka
+		char = headNote "getRandIndices: zero-length key name detected" str
+
+penaltyAtom :: KeyAtom -> Penalty
+penaltyAtom KeyAtom{..} = kaPenalty + penalizeFinger kaFinger
+
+lookupRanges :: (Integral a, Ord a) => a -> [((a, a), b)] -> Maybe ((a, a), b)
+lookupRanges k ranges = listToMaybe $ filter f ranges
+	where
+	f ((i, j), _) = i <= k && k <= j
+
+mkRanges :: (Integral a, Num a) => [(a, b)] -> [((a, a), b)]
+mkRanges = snd . foldl step (0, [])
+	where
+	step (offset, acc) (size, b)
+		= (offset + size, (mkRange size offset, b) : acc)
+\end{code}
+
+\ct{mkRange} produces ranges which we can use for selecting the ``winning'' index for \ct{getRandIndices}.
+If size is 1 and offset is 0, then we get the range (0, 0), because this  denotes that the values that can fall inside it start at 0 and end at 0 (i.e., only 0 itself would work); there there is one 0, it is of size 1.
+
+\begin{code}
+mkRange :: (Integral a, Num a) => a -> a -> (a, a)
+mkRange size offset
+	| size < 1 = error "mkRange: size < 1"
+	| otherwise = (offset, offset + size - 1)
+\end{code}
+
+The \textbf{baseline} ``tax'' in \ct{normalizePenalties} is necessary to prevent the case where the ``least desirable'' (most well-positioned) key gets a penalty of 0.
+We still want to introduce the possibliity of selecting this key at random, in the spirit of real ``mutation''.
+Giving all values a baseline gives every key a random selection ``surface area'' greater than 0.
+
+\begin{code}
+normalizePenalties :: [Penalty] -> [Penalty]
+normalizePenalties ps
+	= map ((+baseline) . normalizePenalty) ps
+	where
+	penaltyMin = minimum ps
+	normalizePenalty p
+		| penaltyMin < 0 = p + (negate penaltyMin)
+		| otherwise = p - penaltyMin
+	baseline
+		= (\(a:b:[]) -> b - a)
+		. takeExactNote "baseline calculation error" 2
+		. sort
+		$ map normalizePenalty ps
+
+safeSum :: [Int] -> Integer
+safeSum xs = sum $ map toInteger xs
+\end{code}
+
+\ct{exaggeratePenalties} checks for possible integer bounds overflow.
+
+\begin{code}
+exaggeratePenalties :: [(Penalty, Int)] -> [(Penalty, Int)]
+exaggeratePenalties = map (\(p, i) -> (safeRaise p (2::Int), i))
+
+safeRaise :: (Show a, Integral b, Num a, Ord a) => a -> b -> a
+safeRaise n e
+	| (n^e) < n = error $ "integer overflow! (" ++ "n was " ++ show n ++ ")"
+	| otherwise = n^e
+
+penalizeAtom :: KeyAtom -> Penalty
+penalizeAtom KeyAtom{..} = kaPenalty
+	+ penalizeFinger kaFinger
+	+ penalizeColRow kaColRow
+
 genSwaps :: GenIO -> IO Int
 genSwaps rng = do
 	r <- uniform rng :: IO Double
 	return $ if
 		| r < 0.8 -> 1
 		| otherwise -> 2
-
-penalizeFinger :: Finger -> Penalty
-penalizeFinger f = case f of
-	FPinky -> 3
-	FRing -> 2
-	FMiddle -> 0
-	FIndex -> 1
-	FThumb -> 4
 \end{code}
 
 \ct{penalizeColRow} penalizes key distance.
@@ -154,16 +272,11 @@ penalizeBigram (h, freqMax) bigram kl@KLayout{..} = case M.lookup bigram h of
 	char0 = T.index bigram 0
 	char1 = T.index bigram 1
 	penaltiesFinger
-		= penaltyFingerBase char0
-		+ penaltyFingerBase char1
+		= penaltyFingerBase kl char0
+		+ penaltyFingerBase kl char1
 		+ penaltyFingerSame
-	penaltyFingerBase c = fromMaybe 0 $ do
-		KeyAtom{..} <- getKeyAtom kl c
-		return $ kaPenalty
-			+ penalizeFinger kaFinger
-			+ penalizeColRow kaColRow
 	penaltyFingerSame
-		| char0 == char1 = penaltyFingerBase char0
+		| char0 == char1 = penaltyFingerBase kl char0
 		| otherwise = 0
 	penaltyHand = fromMaybe 0 $ do
 		ka0 <- getKeyAtom kl char0
@@ -171,6 +284,9 @@ penalizeBigram (h, freqMax) bigram kl@KLayout{..} = case M.lookup bigram h of
 		return $ if (kaHand ka0 == kaHand ka1)
 			then 5
 			else 0
+
+penaltyFingerBase :: KLayout -> Char -> Penalty
+penaltyFingerBase kl c = fromMaybe 0 $ (penalizeAtom <$> getKeyAtom kl c)
 
 getKeyAtom :: KLayout -> Char -> Maybe KeyAtom
 getKeyAtom KLayout{..} c = do

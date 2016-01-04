@@ -28,6 +28,9 @@ type WordBlacklist = M.Map T.Text Bool
 \ct{isAlpha} evaluates to true for any alphabetic \textbf{Unicode} character.
 For every alphabetic or punctuation key,
 
+\label{letterFreq}
+\subsection{Letter Frequency}
+
 \begin{code}
 freqL :: T.Text -> HashL
 freqL = T.foldl step M.empty
@@ -129,9 +132,11 @@ It does this by selecting the top \ct{N} keys with the highest \ct{Int} values.
 
 \begin{code}
 truncateHash :: (Ord k, Ord a) => M.Map k a -> Int -> M.Map k a
-truncateHash h n
-	= M.fromList
-	. take n
+truncateHash h = M.fromList . truncateHashAsList h
+
+truncateHashAsList :: (Ord k, Ord a) => M.Map k a -> Int -> [(k, a)]
+truncateHashAsList h n
+	= take n
 	. reverse
 	. sortBy (comparing snd)
 	$ M.toList h

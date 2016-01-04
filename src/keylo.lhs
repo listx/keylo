@@ -9,6 +9,7 @@ import Control.Monad
 import qualified Data.Map.Strict as M
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
+import qualified Data.Vector as V
 import System.Environment
 import System.Exit
 import System.IO
@@ -51,6 +52,9 @@ keylo opts@Opts{..} = do
 		hashW = freqW
 			(M.fromList . zip (concatMap T.words $ T.lines blacklistWords) $ repeat True)
 			src
+		keyNames = V.toList $ klLayout nisse
+		keyAtoms = map (\ka -> (ka, penaltyAtom ka)) . V.toList $ klKeyboard nisse
+		ks = zip keyNames keyAtoms
 	dispFreq 100 hashL
 	ruler
 	dispFreq 100 hashB
@@ -60,6 +64,8 @@ keylo opts@Opts{..} = do
 	putStrLn . klName $ klscKLayout klsc
 	ruler
 	putStrLn $ show klsc
+	ruler
+	mapM_ (putStrLn . show) ks
 	ruler
 	optimized <- genLayout opts klsc
 	putStrLn "optimized"
