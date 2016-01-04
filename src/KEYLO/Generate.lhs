@@ -2,6 +2,7 @@
 
 \begin{code}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -86,17 +87,35 @@ The lower the penalty, the better.
 \begin{code}
 instance Annealable KLSearchCtx where
 	mutate klsc@KLSearchCtx{..} rng = do
+		swaps <- genSwaps rng
 		let
 			KLayout{..} = klscKLayout
 			visibleRange = (0, klSizeVisible - 1)
-		i <- uniformR visibleRange rng
-		j <- uniformR' visibleRange (V.fromList [i]) rng
+		l <- V.foldM (step visibleRange) klLayout $ V.fromList [1..swaps]
 		return $ klsc
 			{ klscKLayout = klscKLayout
-				{ klLayout = swapIdx i j klLayout
+				{ klLayout = l
 				}
 			}
+		where
+		step :: (Int, Int) -> V.Vector KeyName -> Int -> IO (V.Vector KeyName)
+		step range x _ = do
+			i <- uniformR range rng
+			j <- uniformR' range (V.fromList [i]) rng
+			return $ swapIdx i j x
 	energy KLSearchCtx{..} = penalizeBigrams klscFreqB klscKLayout
+\end{code}
+
+\ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
+The idea is to get some additional variability in the mutations.
+
+\begin{code}
+genSwaps :: GenIO -> IO Int
+genSwaps rng = do
+	r <- uniform rng :: IO Double
+	return $ if
+		| r < 0.8 -> 1
+		| otherwise -> 2
 
 penalizeFinger :: Finger -> Penalty
 penalizeFinger f = case f of
