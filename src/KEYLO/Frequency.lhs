@@ -123,3 +123,16 @@ findMaxVal = M.foldl' step 0
 		then v
 		else acc
 \end{code}
+
+\ct{truncateHash} truncates the given hash structure to contain only \ct{N} keys.
+It does this by selecting the top \ct{N} keys with the highest \ct{Int} values.
+
+\begin{code}
+truncateHash :: (Ord k, Ord a) => M.Map k a -> Int -> M.Map k a
+truncateHash h n
+	= M.fromList
+	. take n
+	. reverse
+	. sortBy (comparing snd)
+	$ M.toList h
+\end{code}

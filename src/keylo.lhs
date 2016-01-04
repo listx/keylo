@@ -43,7 +43,7 @@ keylo opts@Opts{..} = do
 			, klscCorpus = src
 			, klscFreqL = (hashL, findMaxVal hashL)
 			, klscFreqB = (hashB, findMaxVal hashB)
-			, klscFreqW = (hashW, findMaxVal hashW)
+			, klscFreqW = (truncateHash hashW 3000, findMaxVal hashW)
 			, klscKLayout = nisse
 			}
 		hashL = freqL src
