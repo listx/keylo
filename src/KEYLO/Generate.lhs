@@ -245,7 +245,8 @@ probability :: Energy -> Energy -> Temperature -> Probability
 probability e1 e2 t = exp (fromIntegral (e1 - e2) / t)
 \end{code}
 
-\ct{randSearch} is like \ct{anneal} as it has the same type signature, but it is a simple random search.
+\ct{randSearch} is like \ct{anneal} as it has the same type signature, but it is a simple linear search in that it always accepts the mutation if it results in lower energy.
+The theory is that this will quickly lead to the solution space becoming trapped into a local minimum..
 
 \begin{code}
 randSearch :: (Show a, Annealable a) => a -> TimeMax -> GenIO -> IO a
