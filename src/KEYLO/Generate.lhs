@@ -191,7 +191,7 @@ consecChars text
 	headChar = T.head text
 
 swapIdx :: Int -> Int -> V.Vector a -> V.Vector a
-swapIdx i j v = V.update v (V.fromList [(i, jVal), (j, iVal)])
+swapIdx i j v = V.unsafeUpd v [(i, jVal), (j, iVal)]
 	where
 	iVal = v V.! i
 	jVal = v V.! j
