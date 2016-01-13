@@ -253,7 +253,7 @@ penalizeColRow (c, r) = 2 * abs c * abs r
 penalizeBigrams :: (HashB, FreqMax) -> KLayout -> Penalty
 penalizeBigrams hf@(h, _) kl = M.foldlWithKey' step 0 h
 	where
-	step acc bigram _ = acc + penalizeBigram hf bigram kl
+	step acc bigram _ = acc + ((penalizeBigram hf bigram kl)^(2::Int))
 \end{code}
 
 \ct{penalizeBigram}: Penalize typing a bigram --- the following are discouraged: typing with the same finger, typing hard-to-reach keys, and typing with the same hand.
