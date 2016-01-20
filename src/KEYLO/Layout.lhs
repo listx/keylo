@@ -58,6 +58,9 @@ constraintDefault = Constraints
 
 nonLetters :: String
 nonLetters = "`~1234567890!@#$%^&*()[]{}\\|;:'\",<.>/?"
+
+letters :: String
+letters = ['a'..'z']
 \end{code}
 
 \ct{layoutKeyNames} can be used to list the keys necessary to generate the given \ct{Char}.
@@ -74,7 +77,7 @@ type CharToKeyName = M.Map Char KeyName
 charNameHashAscii :: CharToKeyName
 charNameHashAscii = M.fromList asciiKeys
 	where
-	lettersLowercase = map (\c -> (c, [c])) ['a'..'z']
+	lettersLowercase = map (\c -> (c, [c])) letters
 	asciiKeys = lettersLowercase
 		++ concatMap (uncurry genSimpleKey)
 			[ ("`", ('`', '~'))
@@ -170,7 +173,10 @@ nisse = KLayout
 	, klLayout = V.fromList keyNames
 	, klKeyboard = V.fromList keyAtoms
 	, klSize = sameSize keyNames keyAtoms
-	, klSizeVisible = length . fst $ break (flip elem $ map (:[]) nonLetters) keyNames
+	, klSizeVisible
+		= length
+		. fst
+		$ partition (flip elem $ map (:[]) letters) keyNames
 	, klKeyNameToIdx = M.fromList $ zip keyNames [0..(length keyNames - 1)]
 	, klCtkn = charNameHashAscii
 	, klRaw = nisseKeys
@@ -189,90 +195,89 @@ nisse = KLayout
 		[
 			( (HandL, FPinky)
 			,
-				[ (-2,  1,  "[", 7), (-1,  1,  "]", 4), ( 0,  1,     q, 1)
-				, (-2,  0,  "`", 6), (-1,  0,    x, 3), ( 0,  0,   "a", 0)
-				,                    (-1, -1,    x, 5), ( 0, -1,   ";", 2)
+				[ (-2,  1,  xxx, 7), (-1,  1,  "z", 4), ( 0,  1,   "q", 1)
+				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "s", 0)
+				,                    (-1, -1,  xxx, 5), ( 0, -1,   "y", 2)
 				]
 			)
 		,
 			( (HandL, FRing)
 			,
-				[ ( 0,  1,  ",", 1)
-				, ( 0,  0,  "o", 0)
-				, ( 0, -1,  "q", 2)
+				[ ( 0,  1,  "r", 1)
+				, ( 0,  0,  "n", 0)
+				, ( 0, -1,  "w", 2)
 				]
 			)
 		,
 			( (HandL, FMiddle)
 			,
-				[ ( 0,  1,  ".", 1)
-				, ( 0,  0,  "e", 0)
-				, ( 0, -1,  "j", 2)
+				[ ( 0,  1,  "g", 1)
+				, ( 0,  0,  "t", 0)
+				, ( 0, -1,  "c", 2)
 				]
 			)
 		,
 			( (HandL, FIndex)
 			,
-				[ ( 0,  1,  "p", 2), ( 1,  1,  "y", 4), ( 2,  1,    x, 6)
-				, ( 0,  0,  "u", 0), ( 1,  0,  "i", 3), ( 2,  0,    x, 7)
-				, ( 0, -1,  "k", 1), ( 1, -1,  "x", 5)
+				[ ( 0,  1,  "d", 2), ( 1,  1,  "b", 4), ( 2,  1,  xxx, 6)
+				, ( 0,  0,  "h", 0), ( 1,  0,  "l", 3), ( 2,  0,  xxx, 7)
+				, ( 0, -1,  "m", 1), ( 1, -1,  xxx, 5)
 				]
 			)
 		,
 			( (HandL, FThumb)
 			,
-				[ (-2, -2,    x, 4)
-				, (-1, -2,    x, 1)
-				, ( 0, -2,    x, 0)
-				, ( 1, -2,    x, 2)
-				, ( 2, -2,    x, 3)
+				[ (-2, -2,  xxx, 4)
+				, (-1, -2,  xxx, 1)
+				, ( 0, -2,  xxx, 0)
+				, ( 1, -2,  xxx, 2)
+				, ( 2, -2,  xxx, 3)
 				]
 			)
 		,	( (HandR, FPinky)
 			,
-				[ (-2,  1, "\\", 7), (-1,  1,  "/", 4), ( 0,  1,   "l", 2)
-				, (-2,  0,  "=", 6), (-1,  0,  "-", 3), ( 0,  0,   "s", 0)
-				,                    (-1, -1,    x, 5), ( 0, -1,   "z", 1)
+				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   xxx, 2)
+				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "u", 0)
+				,                    (-1, -1,  xxx, 5), ( 0, -1,   "v", 1)
 				]
 			)
 		,
 			( (HandR, FRing)
 			,
-				[ ( 0,  1,  "r", 1)
-				, ( 0,  0,  "n", 0)
-				, ( 0, -1,  "v", 2)
+				[ ( 0,  1,  xxx, 1)
+				, ( 0,  0,  "o", 0)
+				, ( 0, -1,  "x", 2)
 				]
 			)
 		,
 			( (HandR, FMiddle)
 			,
-				[ ( 0,  1,  "c", 1)
-				, ( 0,  0,  "t", 0)
-				, ( 0, -1,  "w", 2)
+				[ ( 0,  1,  xxx, 1)
+				, ( 0,  0,  "e", 0)
+				, ( 0, -1,  "k", 2)
 				]
 			)
 		,
 			( (HandR, FIndex)
 			,
-				[ ( 0,  1,  "g", 2), ( 1,  1,  "f", 4), ( 2,  1,    x, 6)
-				, ( 0,  0,  "h", 0), ( 1,  0,  "d", 3), ( 2,  0,    x, 7)
-				, ( 0, -1,  "m", 1), ( 1, -1,  "b", 5)
+				[ ( 0,  1,  "f", 2), ( 1,  1,  "p", 4), ( 2,  1,  xxx, 6)
+				, ( 0,  0,  "a", 0), ( 1,  0,  "i", 3), ( 2,  0,  xxx, 7)
+				, ( 0, -1,  "j", 1), ( 1, -1,  xxx, 5)
 				]
 			)
 		,
 			( (HandR, FThumb)
 			,
-				[ (-2, -2,    x, 4)
-				, (-1, -2,    x, 1)
-				, ( 0, -2,    x, 0)
-				, ( 1, -2,    x, 2)
-				, ( 2, -2,    x, 3)
+				[ (-2, -2,  xxx, 4)
+				, (-1, -2,  xxx, 1)
+				, ( 0, -2,  xxx, 0)
+				, ( 1, -2,  xxx, 2)
+				, ( 2, -2,  xxx, 3)
 				]
 			)
 		]
 		where
-		x = ""
-		q = succ '!' : []
+		xxx = ""
 \end{code}
 
 We want to prepare our data structure so that it is easier to mutate in a sane manner.
@@ -311,7 +316,7 @@ sortByVisiblesAndPenalty kr0 = a1 ++ b
 	handIs hand ((h, _), _) = hand == h
 	(a0, b) = partition (\(_, (_, _, name, _)) -> elem name letterNames) kr1
 	kr1 = concatMap expandBySnd kr0
-	letterNames = map (:[]) ['a'..'z']
+	letterNames = map (:[]) letters
 \end{code}
 
 \ct{zipKeys} is necessary because it may be the case that two hands have an unequal number of letter-based keys.

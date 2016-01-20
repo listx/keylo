@@ -105,7 +105,9 @@ instance Annealable KLSearchCtx where
 		step x _ = do
 			(i, j) <- getRandIndices klsc rng
 			return $ swapIdx i j x
-	energy KLSearchCtx{..} = penalizeBigrams klscFreqB klscKLayout
+	energy KLSearchCtx{..}
+--		= penalizeLetterFreq klscFreqL klscKLayout
+		= penalizeBigrams klscFreqB klscKLayout
 \end{code}
 
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
@@ -253,7 +255,7 @@ penalizeColRow (c, r) = 2 * abs c * abs r
 penalizeBigrams :: (HashB, FreqMax) -> KLayout -> Penalty
 penalizeBigrams hf@(h, _) kl = M.foldlWithKey' step 0 h
 	where
-	step acc bigram _ = acc + ((penalizeBigram hf bigram kl)^(2::Int))
+	step acc bigram _ = acc + penalizeBigram hf bigram kl
 \end{code}
 
 \ct{penalizeBigram}: Penalize typing a bigram --- the following are discouraged: typing with the same finger, typing hard-to-reach keys, and typing with the same hand.
@@ -264,7 +266,7 @@ penalizeBigram (h, freqMax) bigram kl@KLayout{..} = case M.lookup bigram h of
 	Just freq -> let
 		freq' = fromIntegral freq
 		freqMax' = fromIntegral freqMax
-		penaltyFactor = floor (freq' / freqMax' * 100 :: Double)
+		penaltyFactor = floor (freq' / freqMax' * 10000 :: Double)
 		in
 		penaltyFactor * (penaltiesFinger * 3) + penaltyHand
 	Nothing -> 0
@@ -344,21 +346,34 @@ annealStep rng st0 t = do
 	r <- uniformR (0.0, 1.0) rng
 	st1 <- mutate st0 rng
 	let
-		e2 = energy st1
-		shouldMutate = probability e1 e2 t > r
+		e1 = energy st1
+		shouldMutate = probability e0 e1 t > r
 	if shouldMutate
 		then return st1
 		else return st0
 	where
-	e1 = energy st0
+	e0 = energy st0
+\end{code}
 
+\ct{temperature} is modeled to closely tend to zero as our time percentage reaches 100\%.
+The equation is
+\begin{equation}
+Temperature = 1 - \left(\frac{t}{t + (1 - t)^{cr}}\right)
+\end{equation}
+
+where \textit{t} is the time percentage (we go from a low number toward 1.0), and \textit{cr} is the cooling rate.
+The higher the cooling rate, the quicker the temperature drops toward 0.
+A cooling rate of \(\frac{1}{2}\) would mean that the temperature would reach 0.4 when were about 80 percent done, whereas a cooling rate of 4 would mean that the temperature would reeach 0.4 when we're only about 30 percent done.
+In comparison, a cooling rate of 50 would get us to 0.4 temperature when we're only about 6 percent complete!
+
+\begin{code}
 temperature :: TimeMax -> TimeCur -> Temperature
-temperature tMax tCur = 50.0 * exp (0.0 - (5.0 * currentRatio))
+temperature tMax tCur = 1.0 - (t / (t + ((1 - t))^(2::Int) ))
 	where
-	currentRatio = fromIntegral tCur / fromIntegral tMax
+	t = fromIntegral tCur / fromIntegral tMax
 
 probability :: Energy -> Energy -> Temperature -> Probability
-probability e1 e2 t = exp (fromIntegral (e1 - e2) / t)
+probability e0 e1 t = exp (fromIntegral (e0 - e1) / t)
 \end{code}
 
 \ct{randSearch} is like \ct{anneal} as it has the same type signature, but it is a simple linear search in that it always accepts the mutation if it results in lower energy.
@@ -373,13 +388,13 @@ randStep :: (Show a, Annealable a) => GenIO -> a -> Int -> IO a
 randStep rng st0 _ = do
 	st1 <- mutate st0 rng
 	let
-		e2 = energy st1
-		shouldMutate = e1 > e2
+		e1 = energy st1
+		shouldMutate = e1 < e0
 	if shouldMutate
 		then return st1
 		else return st0
 	where
-	e1 = energy st0
+	e0 = energy st0
 \end{code}
 
 \ct{shuffle} is the famous \href{https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle}{Fisher-Yates shuffle}.
