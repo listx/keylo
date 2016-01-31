@@ -90,4 +90,7 @@ genLayout Opts{..} klsc0 = do
 	return $ klsc1
 		{ klscKLayout = syncKLayout klscKLayout
 		}
+
+genLayouts :: Opts -> KLSearchCtx -> Int -> IO [KLSearchCtx]
+genLayouts o k n = mapM (\_ -> genLayout o k) [1..n]
 \end{code}
