@@ -106,8 +106,11 @@ instance Annealable KLSearchCtx where
 			(i, j) <- getRandIndices klsc rng
 			return $ swapIdx i j x
 	energy KLSearchCtx{..}
---		= penalizeLetterFreq klscFreqL klscKLayout
-		= penalizeBigrams klscFreqB klscKLayout
+		= penalizeFreqL klscFreqL fw klscKLayout
+		+ penalizeFreqB klscFreqB fw klscKLayout
+		where
+		(hw, maxW) = klscFreqW
+		fw = (truncateHashTop hw 60, maxW)
 \end{code}
 
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
@@ -234,15 +237,16 @@ safeRaise n e
 	| otherwise = n^e
 
 penalizeAtom :: KeyAtom -> Penalty
-penalizeAtom KeyAtom{..} = kaPenalty
-	+ penalizeFinger kaFinger
-	+ penalizeColRow kaColRow
+penalizeAtom KeyAtom{..}
+	= pf * (kaPenalty + penalizeColRow kaColRow)
+	where
+	pf = penalizeFinger kaFinger
 
 genSwaps :: GenIO -> IO Int
 genSwaps rng = do
 	r <- uniform rng :: IO Double
 	return $ if
-		| r < 0.8 -> 1
+		| r < 0.66 -> 1
 		| otherwise -> 2
 \end{code}
 
@@ -250,25 +254,89 @@ genSwaps rng = do
 
 \begin{code}
 penalizeColRow :: ColRow -> Penalty
-penalizeColRow (c, r) = 2 * abs c * abs r
+penalizeColRow (c, r) = 2 * (abs c + 1) * (abs r + 1)
 
-penalizeBigrams :: (HashB, FreqMax) -> KLayout -> Penalty
-penalizeBigrams hf@(h, _) kl = M.foldlWithKey' step 0 h
+penalizeFreqL
+  :: (HashL, FreqMax)
+  -> ([(T.Text, Word64)], FreqMax)
+  -> KLayout
+  -> Penalty
+penalizeFreqL hl@(h, _) hw kl = M.foldlWithKey' step 0 h
 	where
-	step acc bigram _ = acc + penalizeBigram hf bigram kl
+	step acc char _ = acc + penalizeChar hl hw char kl
+
+penalizeFreqB
+	:: (HashB, FreqMax)
+    -> ([(T.Text, Word64)], FreqMax)
+    -> KLayout
+    -> Penalty
+penalizeFreqB hb@(h, _) hw kl = M.foldlWithKey' step 0 h
+	where
+	step acc bigram _ = acc + penalizeBigram hb hw bigram kl
+\end{code}
+
+\begin{code}
+penalizeChar
+  :: (HashL, FreqMax)
+  -> ([(T.Text, Word64)], FreqMax)
+  -> Char
+  -> KLayout
+  -> Penalty
+penalizeChar (hl, maxL) (hw, maxW) char kl@KLayout{..}
+	= case M.lookup char hl of
+	Just freq -> let
+		freq' = fromIntegral freq
+		maxL' = fromIntegral maxL
+		charImportance = freq' / (maxL' * 1000 :: Double)
+		penaltyFactor = floor (charImportance * charWordImportance)
+		in
+		penaltyFactor * (penaltyFingerBase kl char * 3)
+	Nothing -> 0
+	where
+	charWordImportance = fromIntegral $ foldl' step (0::Int) hw
+		where
+		step pen (txt, freq)
+			| elem char str
+				=
+				let
+					freq' = fromIntegral freq
+					maxW' = fromIntegral maxW
+				in
+					pen + floor (weightedScale freq' maxW' * n)
+			| otherwise = pen
+			where
+			str = T.unpack txt
+			n = fromIntegral . length $ filter (==char) str
+
+weightedScale :: Double -> Double -> Double
+weightedScale num denom = 16 ** (4 * num / denom)
 \end{code}
 
 \ct{penalizeBigram}: Penalize typing a bigram --- the following are discouraged: typing with the same finger, typing hard-to-reach keys, and typing with the same hand.
+\ct{bwImportance} measures how important a bigram is with respect to a word.
+For example, the bigram ``it'' is in two places in ``repitition''.
+The idea is to boost a bigram's importance by the frequency in which it shows up in frequent words.
+This is why we need the \ct{hw} and \ct{maxW}; the actual calculation is performed by looping through all words, and seeing how many times the bigram shows up in those words.
+
+Both \ct{charWordImportance} and \ct{bwImportance} follow the same philosophy in emphasizing the word's frequency percentage in a nonlinear scale. so that more frequent words have a much greater impact than less frequent words.
+\textbf{We heavily emphasize word frequency in judging the weight of a letter or bigram}.
 
 \begin{code}
-penalizeBigram :: (HashB, FreqMax) -> Bigram -> KLayout -> Penalty
-penalizeBigram (h, freqMax) bigram kl@KLayout{..} = case M.lookup bigram h of
+penalizeBigram
+	:: (HashB, FreqMax)
+    -> ([(T.Text, Word64)], FreqMax)
+	-> Bigram
+    -> KLayout
+    -> Penalty
+penalizeBigram (hb, maxB) (hw, maxW) bigram kl@KLayout{..}
+	= case M.lookup bigram hb of
 	Just freq -> let
 		freq' = fromIntegral freq
-		freqMax' = fromIntegral freqMax
-		penaltyFactor = floor (freq' / freqMax' * 10000 :: Double)
+		maxB' = fromIntegral maxB
+		bImportance = freq' / maxB' * 1000 :: Double
+		penaltyFactor = floor (bImportance * bwImportance)
 		in
-		penaltyFactor * (penaltiesFinger * 3) + penaltyHand
+		(penaltyFactor * penaltiesFinger) + penaltyHand
 	Nothing -> 0
 	where
 	char0 = T.index bigram 0
@@ -286,9 +354,23 @@ penalizeBigram (h, freqMax) bigram kl@KLayout{..} = case M.lookup bigram h of
 		return $ if (kaHand ka0 == kaHand ka1)
 			then 5
 			else 0
+	bwImportance = fromIntegral $ foldl' step (0::Int) hw
+		where
+		step pen (txt, freq)
+			| elem bigram bgrams
+				=
+				let
+					freq' = fromIntegral freq
+					maxW' = fromIntegral maxW
+				in
+					pen + floor (weightedScale freq' maxW' * n)
+			| otherwise = pen
+			where
+			bgrams = bigrams txt
+			n = fromIntegral . length $ filter (==bigram) bgrams
 
 penaltyFingerBase :: KLayout -> Char -> Penalty
-penaltyFingerBase kl c = fromMaybe 0 $ (penalizeAtom <$> getKeyAtom kl c)
+penaltyFingerBase kl c = fromMaybe 1 $ (penalizeAtom <$> getKeyAtom kl c)
 
 getKeyAtom :: KLayout -> Char -> Maybe KeyAtom
 getKeyAtom KLayout{..} c = do

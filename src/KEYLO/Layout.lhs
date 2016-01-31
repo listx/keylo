@@ -336,11 +336,11 @@ alternateKeys xs ys
 
 penalizeFinger :: Finger -> Penalty
 penalizeFinger f = case f of
-	FPinky -> 3
-	FRing -> 2
-	FMiddle -> 0
-	FIndex -> 1
-	FThumb -> 4
+	FPinky -> 4
+	FRing -> 3
+	FMiddle -> 1
+	FIndex -> 2
+	FThumb -> 5
 \end{code}
 
 We need a way of showing \ct{KLayout} in a human-friendly way.

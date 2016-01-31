@@ -141,3 +141,23 @@ truncateHashAsList h n
 	. sortBy (comparing snd)
 	$ M.toList h
 \end{code}
+
+\ct{truncateHashTop} takes the top \textit{p} percent of the data by sorting (biggest freq first), then taking until the subtotal's percentage matches or exceeds that of \textit{p}.
+
+\begin{code}
+truncateHashTop
+	:: (Ord k, Ord a, Integral a)
+	=> M.Map k a
+    -> Double
+    -> [(k, a)]
+truncateHashTop h p = fst $ foldl' step ([], 0) lst
+	where
+	lst
+		= reverse
+		. sortBy (comparing snd)
+		$ M.toList h
+	total = sum $ map snd lst
+	step acc@(xs, subtotal) kv@(_, a)
+		| (fromIntegral subtotal / fromIntegral total) >= p = acc
+		| otherwise = (kv : xs, subtotal + a)
+\end{code}
