@@ -52,3 +52,10 @@ escapeShell = concatMap f
 		| otherwise = [c]
 	specialShellChars = "`~!@#$%^&*()[]\\|;'\"<>" :: String
 \end{code}
+
+Below are some miscellaneous math functions.
+
+\begin{code}
+energyLossPerc :: Double -> Double -> Double
+energyLossPerc e1 e2 = (1.0 - (e2 / e1)) * 100
+\end{code}

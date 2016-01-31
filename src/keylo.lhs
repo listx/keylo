@@ -14,6 +14,7 @@ import System.Environment
 import System.Exit
 import System.IO
 import System.Random.PCG
+import qualified Text.Printf as TP
 
 import KEYLO.Frequency
 import KEYLO.Generate
@@ -55,6 +56,7 @@ keylo opts@Opts{..} = do
 		keyNames = V.toList $ klLayout nisse
 		keyAtoms = map (\ka -> (ka, penaltyAtom ka)) . V.toList $ klKeyboard nisse
 		ks = zip keyNames keyAtoms
+		e1 = fromIntegral $ energy klsc
 	dispFreq 100 hashL
 	ruler
 	dispFreq 100 hashB
@@ -68,9 +70,12 @@ keylo opts@Opts{..} = do
 	mapM_ (putStrLn . show) ks
 	ruler
 	optimized <- genLayout opts klsc
+	let
+		e2 = fromIntegral $ energy optimized
 	putStrLn "optimized"
 	ruler
 	putStrLn $ show optimized
+	TP.printf "Energy loss: %.2f%%" (energyLossPerc e1 e2)
 	where
 	ruler = putStrLn $ replicate 80 '-'
 \end{code}
