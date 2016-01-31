@@ -86,9 +86,19 @@ freqW blist = foldl step M.empty . T.words
 			else M.insertWith (+) w' 1 hashW
 		where
 		w' = T.filter isAlphabet $ T.toLower w
+\end{code}
 
+\ct{isAlphabet} checks if the given char is in the basic, 26-letter English alphabet from ``a'' to ``z'', lower and uppercase.
+For speed, instead of using \ct{elem} over a list of \ct{Char}s (\ct{String} type), it does arithmetic comparisons for a subset of the traditional ASCII character set range (0 to 127).
+
+\begin{code}
 isAlphabet :: Char -> Bool
-isAlphabet = flip elem $ ['a'..'z'] ++ ['A'..'Z']
+isAlphabet c
+	| 65 <= x && x <= 90 = True
+	| 97 <= x && x <= 122 = True
+	| otherwise = False
+	where
+	x = ord c
 
 sameLetters :: String -> Bool
 sameLetters xs = all (== head xs) xs
