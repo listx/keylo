@@ -161,3 +161,8 @@ truncateHashTop h p = fst $ foldl' step ([], 0) lst
 		| (fromIntegral subtotal / fromIntegral total) >= p = acc
 		| otherwise = (kv : xs, subtotal + a)
 \end{code}
+
+\begin{code}
+bigramize :: [(T.Text, Word64)] -> [([T.Text], Word64)]
+bigramize = map (\(txt, freq) -> (bigrams txt, freq))
+\end{code}

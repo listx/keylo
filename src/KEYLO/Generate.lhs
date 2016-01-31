@@ -107,10 +107,11 @@ instance Annealable KLSearchCtx where
 			return $ swapIdx i j x
 	energy KLSearchCtx{..}
 		= penalizeFreqL klscFreqL fw klscKLayout
-		+ penalizeFreqB klscFreqB fw klscKLayout
+		+ penalizeFreqB klscFreqB fw' klscKLayout
 		where
 		(hw, maxW) = klscFreqW
-		fw = (truncateHashTop hw 60, maxW)
+		fw@(lst, maxFreq) = (truncateHashTop hw 60, maxW)
+		fw' = (bigramize lst, maxFreq)
 \end{code}
 
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
@@ -267,7 +268,7 @@ penalizeFreqL hl@(h, _) hw kl = M.foldlWithKey' step 0 h
 
 penalizeFreqB
 	:: (HashB, FreqMax)
-    -> ([(T.Text, Word64)], FreqMax)
+    -> ([([T.Text], Word64)], FreqMax)
     -> KLayout
     -> Penalty
 penalizeFreqB hb@(h, _) hw kl = M.foldlWithKey' step 0 h
@@ -324,7 +325,7 @@ Both \ct{charWordImportance} and \ct{bwImportance} follow the same philosophy in
 \begin{code}
 penalizeBigram
 	:: (HashB, FreqMax)
-    -> ([(T.Text, Word64)], FreqMax)
+    -> ([([T.Text], Word64)], FreqMax)
 	-> Bigram
     -> KLayout
     -> Penalty
@@ -356,7 +357,7 @@ penalizeBigram (hb, maxB) (hw, maxW) bigram kl@KLayout{..}
 			else 0
 	bwImportance = fromIntegral $ foldl' step (0::Int) hw
 		where
-		step pen (txt, freq)
+		step pen (bgrams, freq)
 			| elem bigram bgrams
 				=
 				let
@@ -366,7 +367,6 @@ penalizeBigram (hb, maxB) (hw, maxW) bigram kl@KLayout{..}
 					pen + floor (weightedScale freq' maxW' * n)
 			| otherwise = pen
 			where
-			bgrams = bigrams txt
 			n = fromIntegral . length $ filter (==bigram) bgrams
 
 penaltyFingerBase :: KLayout -> Char -> Penalty
