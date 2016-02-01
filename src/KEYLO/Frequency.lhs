@@ -21,6 +21,7 @@ type Word = T.Text
 type HashL = M.Map Char Word64
 type HashB = M.Map Bigram Word64
 type HashW = M.Map Word Word64
+type HashLW = M.Map Char Double
 type HashBW = M.Map Bigram Double
 type WordBlacklist = M.Map T.Text Bool
 \end{code}
@@ -181,6 +182,16 @@ bigramsWeighted (ws, freqMax) = foldl' step M.empty ws
 	where
 	step h (w, n) = foldl (insertBigrams n) h $ bigrams w
 	insertBigrams n h' bigram = M.insertWith (+) bigram m h'
+		where
+		m = weightedScale n' freqMax'
+		n' = fromIntegral n
+		freqMax' = fromIntegral freqMax
+
+charsWeighted :: ([(T.Text, Word64)], FreqMax) -> HashLW
+charsWeighted (ws, freqMax) = foldl' step M.empty ws
+	where
+	step h (w, n) = foldl (insertChars n) h $ T.unpack w
+	insertChars n h' c = M.insertWith (+) c m h'
 		where
 		m = weightedScale n' freqMax'
 		n' = fromIntegral n

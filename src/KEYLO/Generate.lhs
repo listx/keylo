@@ -106,12 +106,13 @@ instance Annealable KLSearchCtx where
 			(i, j) <- getRandIndices klsc rng
 			return $ swapIdx i j x
 	energy KLSearchCtx{..}
-		= penalizeFreqL klscFreqL fw klscKLayout
-		+ penalizeFreqB klscFreqB fw' klscKLayout
+		= penalizeFreqL klscFreqL hLW klscKLayout
+		+ penalizeFreqB klscFreqB hBW klscKLayout
 		where
 		(hw, maxW) = klscFreqW
-		fw@(lst, maxFreq) = (truncateHashTop hw 60, maxW)
-		fw' = bigramsWeighted (lst, maxFreq)
+		(lst, maxFreq) = (truncateHashTop hw 60, maxW)
+		hLW = charsWeighted (lst, maxFreq)
+		hBW = bigramsWeighted (lst, maxFreq)
 \end{code}
 
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
@@ -259,7 +260,7 @@ penalizeColRow (c, r) = 2 * (abs c + 1) * (abs r + 1)
 
 penalizeFreqL
   :: (HashL, FreqMax)
-  -> ([(T.Text, Word64)], FreqMax)
+  -> HashLW
   -> KLayout
   -> Penalty
 penalizeFreqL hl@(h, _) hw kl = M.foldlWithKey' step 0 h
@@ -279,11 +280,11 @@ penalizeFreqB hb@(h, _) hw kl = M.foldlWithKey' step 0 h
 \begin{code}
 penalizeChar
   :: (HashL, FreqMax)
-  -> ([(T.Text, Word64)], FreqMax)
+  -> HashLW
   -> Char
   -> KLayout
   -> Penalty
-penalizeChar (hl, maxL) (hw, maxW) char kl@KLayout{..}
+penalizeChar (hl, maxL) hlw char kl@KLayout{..}
 	= case M.lookup char hl of
 	Just freq -> let
 		freq' = fromIntegral freq
@@ -294,20 +295,9 @@ penalizeChar (hl, maxL) (hw, maxW) char kl@KLayout{..}
 		penaltyFactor * (penaltyFingerBase kl char * 3)
 	Nothing -> 0
 	where
-	charWordImportance = fromIntegral $ foldl' step (0::Int) hw
-		where
-		step pen (txt, freq)
-			| elem char str
-				=
-				let
-					freq' = fromIntegral freq
-					maxW' = fromIntegral maxW
-				in
-					pen + floor (weightedScale freq' maxW' * n)
-			| otherwise = pen
-			where
-			str = T.unpack txt
-			n = fromIntegral . length $ filter (==char) str
+	charWordImportance = case M.lookup char hlw of
+		Just pen -> pen
+		Nothing -> 1
 \end{code}
 
 \ct{penalizeBigram}: Penalize typing a bigram --- the following are discouraged: typing with the same finger, typing hard-to-reach keys, and typing with the same hand.
