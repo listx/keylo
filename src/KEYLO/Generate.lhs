@@ -35,6 +35,9 @@ data KLSearchCtx = KLSearchCtx
 	, klscFreqL :: (HashL, FreqMax)
 	, klscFreqB :: (HashB, FreqMax)
 	, klscFreqW :: (HashW, FreqMax)
+	, klscFreqWTrunc :: [(T.Text, Word64)]
+	, klscFreqLW :: HashLW
+	, klscFreqBW :: HashBW
 	, klscKLayout :: KLayout
 	}
 
@@ -106,13 +109,8 @@ instance Annealable KLSearchCtx where
 			(i, j) <- getRandIndices klsc rng
 			return $ swapIdx i j x
 	energy KLSearchCtx{..}
-		= penalizeFreqL klscFreqL hLW klscKLayout
-		+ penalizeFreqB klscFreqB hBW klscKLayout
-		where
-		(hw, maxW) = klscFreqW
-		(lst, maxFreq) = (truncateHashTop hw 60, maxW)
-		hLW = charsWeighted (lst, maxFreq)
-		hBW = bigramsWeighted (lst, maxFreq)
+		= penalizeFreqL klscFreqL klscFreqLW klscKLayout
+		+ penalizeFreqB klscFreqB klscFreqBW klscKLayout
 \end{code}
 
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
