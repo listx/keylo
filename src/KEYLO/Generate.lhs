@@ -111,7 +111,7 @@ instance Annealable KLSearchCtx where
 		where
 		(hw, maxW) = klscFreqW
 		fw@(lst, maxFreq) = (truncateHashTop hw 60, maxW)
-		fw' = (bigramize lst, maxFreq)
+		fw' = bigramsWeighted (lst, maxFreq)
 \end{code}
 
 \ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
@@ -268,7 +268,7 @@ penalizeFreqL hl@(h, _) hw kl = M.foldlWithKey' step 0 h
 
 penalizeFreqB
 	:: (HashB, FreqMax)
-    -> ([([T.Text], Word64)], FreqMax)
+    -> HashBW
     -> KLayout
     -> Penalty
 penalizeFreqB hb@(h, _) hw kl = M.foldlWithKey' step 0 h
@@ -308,9 +308,6 @@ penalizeChar (hl, maxL) (hw, maxW) char kl@KLayout{..}
 			where
 			str = T.unpack txt
 			n = fromIntegral . length $ filter (==char) str
-
-weightedScale :: Double -> Double -> Double
-weightedScale num denom = 16 ** (4 * num / denom)
 \end{code}
 
 \ct{penalizeBigram}: Penalize typing a bigram --- the following are discouraged: typing with the same finger, typing hard-to-reach keys, and typing with the same hand.
@@ -325,11 +322,11 @@ Both \ct{charWordImportance} and \ct{bwImportance} follow the same philosophy in
 \begin{code}
 penalizeBigram
 	:: (HashB, FreqMax)
-    -> ([([T.Text], Word64)], FreqMax)
+    -> HashBW
 	-> Bigram
     -> KLayout
     -> Penalty
-penalizeBigram (hb, maxB) (hw, maxW) bigram kl@KLayout{..}
+penalizeBigram (hb, maxB) hbw bigram kl@KLayout{..}
 	= case M.lookup bigram hb of
 	Just freq -> let
 		freq' = fromIntegral freq
@@ -355,19 +352,9 @@ penalizeBigram (hb, maxB) (hw, maxW) bigram kl@KLayout{..}
 		return $ if (kaHand ka0 == kaHand ka1)
 			then 5
 			else 0
-	bwImportance = fromIntegral $ foldl' step (0::Int) hw
-		where
-		step pen (bgrams, freq)
-			| elem bigram bgrams
-				=
-				let
-					freq' = fromIntegral freq
-					maxW' = fromIntegral maxW
-				in
-					pen + floor (weightedScale freq' maxW' * n)
-			| otherwise = pen
-			where
-			n = fromIntegral . length $ filter (==bigram) bgrams
+	bwImportance = case M.lookup bigram hbw of
+		Just pen -> pen
+		Nothing -> 1
 
 penaltyFingerBase :: KLayout -> Char -> Penalty
 penaltyFingerBase kl c = fromMaybe 1 $ (penalizeAtom <$> getKeyAtom kl c)

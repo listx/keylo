@@ -21,6 +21,7 @@ type Word = T.Text
 type HashL = M.Map Char Word64
 type HashB = M.Map Bigram Word64
 type HashW = M.Map Word Word64
+type HashBW = M.Map Bigram Double
 type WordBlacklist = M.Map T.Text Bool
 \end{code}
 
@@ -172,7 +173,19 @@ truncateHashTop h p = fst $ foldl' step ([], 0) lst
 		| otherwise = (kv : xs, subtotal + a)
 \end{code}
 
+\ct{HashBW} is like \ct{HashB} (a hash of bigrams), except that each bigram is also weighted by how often it shows up in \ct{HashW}.
+
 \begin{code}
-bigramize :: [(T.Text, Word64)] -> [([T.Text], Word64)]
-bigramize = map (\(txt, freq) -> (bigrams txt, freq))
+bigramsWeighted :: ([(T.Text, Word64)], FreqMax) -> HashBW
+bigramsWeighted (ws, freqMax) = foldl' step M.empty ws
+	where
+	step h (w, n) = foldl (insertBigrams n) h $ bigrams w
+	insertBigrams n h' bigram = M.insertWith (+) bigram m h'
+		where
+		m = weightedScale n' freqMax'
+		n' = fromIntegral n
+		freqMax' = fromIntegral freqMax
+
+weightedScale :: Double -> Double -> Double
+weightedScale num denom = 16 ** (4 * num / denom)
 \end{code}
