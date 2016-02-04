@@ -94,27 +94,18 @@ The lower the penalty, the better.
 \begin{code}
 instance Annealable KLSearchCtx where
 	mutate klsc@KLSearchCtx{..} rng = do
-		swaps <- genSwaps rng
 		let
 			KLayout{..} = klscKLayout
-		l <- foldM step klLayout [1..swaps]
+		(i, j) <- getRandIndices klsc rng
 		return $ klsc
 			{ klscKLayout = klscKLayout
-				{ klLayout = l
+				{ klLayout = swapIdx i j klLayout
 				}
 			}
-		where
-		step :: V.Vector KeyName -> Int -> IO (V.Vector KeyName)
-		step x _ = do
-			(i, j) <- getRandIndices klsc rng
-			return $ swapIdx i j x
 	energy KLSearchCtx{..}
 		= penalizeFreqL klscFreqL klscFreqLW klscKLayout
 		+ penalizeFreqB klscFreqB klscFreqBW klscKLayout
 \end{code}
-
-\ct{genSwaps} generates a ``1'' 80\% of the time, and a ``2'' the rest of the time.
-The idea is to get some additional variability in the mutations.
 
 \ct{getRandIndices} is important in simulating the idea of natural selection.
 The idea is to encourage the algorithm to keep the good keys and try to swap the bad keys (if our mutations are highly volatile, where we swap well-placed key away from its position, our search is as good as random search).
@@ -241,13 +232,6 @@ penalizeAtom KeyAtom{..}
 	= pf * (kaPenalty + penalizeColRow kaColRow)
 	where
 	pf = penalizeFinger kaFinger
-
-genSwaps :: GenIO -> IO Int
-genSwaps rng = do
-	r <- uniform rng :: IO Double
-	return $ if
-		| r < 0.66 -> 1
-		| otherwise -> 2
 \end{code}
 
 \ct{penalizeColRow} penalizes key distance.
