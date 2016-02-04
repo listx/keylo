@@ -126,7 +126,6 @@ data KLayout = KLayout
 	, klKeyboard :: V.Vector KeyAtom
 	, klSize :: Int
 	, klSizeVisible :: Int
-	, klKeyNameToIdx :: M.Map KeyName Int
 	, klCtkn :: CharToKeyName
 	, klRaw :: KeyboardRaw
 	}
@@ -177,7 +176,6 @@ nisse = KLayout
 		= length
 		. fst
 		$ partition (flip elem $ map (:[]) letters) keyNames
-	, klKeyNameToIdx = M.fromList $ zip keyNames [0..(length keyNames - 1)]
 	, klCtkn = charNameHashAscii
 	, klRaw = nisseKeys
 	}
