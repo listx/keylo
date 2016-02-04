@@ -169,7 +169,7 @@ truncateHashTop h p = fst $ foldl' step ([], 0) lst
 		$ M.toList h
 	total = sum $ map snd lst
 	step acc@(xs, subtotal) kv@(_, a)
-		| (fromIntegral subtotal / fromIntegral total) >= p = acc
+		| (fromIntegral subtotal / fromIntegral total * 100) >= p = acc
 		| otherwise = (kv : xs, subtotal + a)
 \end{code}
 
