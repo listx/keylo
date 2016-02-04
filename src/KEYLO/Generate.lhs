@@ -259,7 +259,7 @@ penalizeChar (hl, maxL) hlw char kl@KLayout{..}
 		charImportance = freq' / (maxL' * 1000 :: Double)
 		penaltyFactor = floor (charImportance * charWordImportance)
 		in
-		penaltyFactor * (penaltyFingerBase kl char * 3)
+		penaltyFactor * (penaltyFingerBase (getKeyAtom kl char) * 3)
 	Nothing -> 0
 	where
 	charWordImportance = case M.lookup char hlw of
@@ -295,25 +295,27 @@ penalizeBigram (hb, maxB) hbw bigram kl@KLayout{..}
 	Nothing -> 0
 	where
 	(char0, char1) = bigram
+	ka0 = getKeyAtom kl char0
+	ka1 = getKeyAtom kl char1
+	ka0' = fromJustNote "ka0" ka0
+	ka1' = fromJustNote "ka1" ka1
 	penaltiesFinger
-		= penaltyFingerBase kl char0
-		+ penaltyFingerBase kl char1
+		= penaltyFingerBase ka0
+		+ penaltyFingerBase ka1
 		+ penaltyFingerSame
 	penaltyFingerSame
-		| char0 == char1 = penaltyFingerBase kl char0
+		| char0 == char1 = penaltyFingerBase ka0
 		| otherwise = 0
 	penaltyHand = fromMaybe 0 $ do
-		ka0 <- getKeyAtom kl char0
-		ka1 <- getKeyAtom kl char1
-		return $ if (kaHand ka0 == kaHand ka1)
+		return $ if (kaHand ka0' == kaHand ka1')
 			then 5
 			else 0
 	bwImportance = case M.lookup bigram hbw of
 		Just pen -> pen
 		Nothing -> 1
 
-penaltyFingerBase :: KLayout -> Char -> Penalty
-penaltyFingerBase kl c = fromMaybe 1 $ (penalizeAtom <$> getKeyAtom kl c)
+penaltyFingerBase :: Maybe KeyAtom -> Penalty
+penaltyFingerBase ka = fromMaybe 1 $ (penalizeAtom <$> ka)
 
 getKeyAtom :: KLayout -> Char -> Maybe KeyAtom
 getKeyAtom KLayout{..} c = do
