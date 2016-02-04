@@ -50,6 +50,8 @@ keylo opts@Opts{..} = do
 			, klscFreqLW = hLW
 			, klscFreqBW = hBW
 			, klscKLayout = nisse
+			, klscKeyPlacementPenalty
+				= updateKpp (hashL, findMaxVal hashL) initialKpp nisse [0..(V.length initialKpp - 1)]
 			}
 		thw = truncateHash hashW 3000
 		maxW = findMaxVal hashW
@@ -64,6 +66,7 @@ keylo opts@Opts{..} = do
 		keyNames = V.toList $ klLayout nisse
 		keyAtoms = map (\ka -> (ka, penaltyAtom ka)) . V.toList $ klKeyboard nisse
 		ks = zip keyNames keyAtoms
+		initialKpp = flip V.replicate 0 (klSizeVisible nisse)
 		e1 = fromIntegral $ energy klsc
 	dispFreq 100 hashL
 	ruler

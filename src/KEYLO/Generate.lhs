@@ -17,7 +17,6 @@ import qualified Data.Text.Lazy as T
 import qualified Data.Vector as V
 import Data.Word hiding (Word)
 import Safe
-import Safe.Exact
 import System.Random.PCG
 import System.Random.PCG.Class
 
@@ -29,6 +28,8 @@ data Algorithm
 	| ASimAnneal
 	deriving (Data, Eq, Show, Typeable)
 
+type PenaltyD = Double
+
 data KLSearchCtx = KLSearchCtx
 	{ klscConstraints :: Constraints
 	, klscCorpus :: T.Text
@@ -39,6 +40,7 @@ data KLSearchCtx = KLSearchCtx
 	, klscFreqLW :: HashLW
 	, klscFreqBW :: HashBW
 	, klscKLayout :: KLayout
+	, klscKeyPlacementPenalty :: V.Vector PenaltyD
 	}
 
 instance Show KLSearchCtx where
@@ -117,11 +119,6 @@ instance Annealable KLSearchCtx where
 
 \ct{getRandIndices} is important in simulating the idea of natural selection.
 The idea is to encourage the algorithm to keep the good keys and try to swap the bad keys (if our mutations are highly volatile, where we swap well-placed key away from its position, our search is as good as random search).
-Key desirability is quite simple: we sort each key by letter frequency (available from \ct{HashL}).
-We then zip these with the most desirable key positions, by a combination of base finger and column/row penalty (this is actually done beforehand by \ct{sortByVisiblesAndPenalty} in Section~\ref{sortByVisiblesAndPenalty}).
-But since we don't always want to select the exact same lowest-ranked key all the time, we use some randomness in selecting the indices to swap.
-The way we do it is assign each index a score, based on how nicely the letter (frequency score) is matched to the index position (key position is already sorted by base finger penalty by \ct{sortByVisiblesAndPenalty}).
-The higher the score, the greater the likelihood of it being selected.
 
 NOTE: \ct{hFreqL} is 26 elements big because its membership is guarded by \ct{isAlphabet} in Section~\ref{letterFreq}.
 Still, we double-check just in case.
@@ -129,7 +126,7 @@ Still, we double-check just in case.
 \ct{placementPenalty} is what really matters.
 It is calculated as
 \begin{equation}
-\mathrm{placement\  penalty} = \mathrm{penalty} - \mathrm{frequency}
+\mathrm{PlacementPenalty} = \mathrm{PhysicalPenalty} * \mathrm{Frequency}
 \end{equation}
 
 .
@@ -137,91 +134,71 @@ The \textbf{frequency} term must be in terms of a percentage to keep it from bec
 \begin{code}
 getRandIndices :: KLSearchCtx -> GenIO -> IO (Int, Int)
 getRandIndices KLSearchCtx{..} rng = do
-	r1 <- uniformR (0, penMax - 1) rng
+	r1 <- uniform rng :: IO Double
+	r2 <- uniform rng :: IO Double
 	let
-		((rangeStart, rangeEnd), i) = unsafeGetIdx r1 penRanges
-	r2 <- uniformR' (0, penMax - 1) (V.fromList [rangeStart..rangeEnd]) rng
-	let
-		(_, j) = unsafeGetIdx r2 penRanges
-	return (i, j)
+		i = selectIdxByProbability r1 klscKeyPlacementPenalty
+		j = selectIdxByProbability r2 klscKeyPlacementPenalty
+	normalize i j
 	where
-	unsafeGetIdx k ranges = case lookupRanges k ranges of
-		Just ri -> ri
-		Nothing -> error "oops"
-	(hFreqL, freqMax) = klscFreqL
-	visibleSize = klSizeVisible klscKLayout
-	hFreqL'
-		| M.size hFreqL /= visibleSize = error "invalid hFreqL size"
-		| otherwise = hFreqL
-	penMax = sum $ map fst mostDesirables
-	penRanges = mkRanges mostDesirables
-	mostDesirables :: [(Penalty, Int)]
-	mostDesirables
-		= (\(ps, is) -> zip (normalizePenalties ps) is)
-		. unzip
-		. foldl step []
-		. zip [0..]
-		. take visibleSize
-		. V.toList
-		$ klLayout klscKLayout
-	step acc (idx, keyName) = (placementPenalty idx keyName, idx) : acc
-	placementPenalty idx str = pen - freqPerc
+	normalize i j
+		| j /= i = return (i, j)
+		| otherwise = do
+			dir <- uniform rng :: IO Bool
+			let
+				k = if dir == True
+					then i + 1
+					else i - 1
+			return (i, mod k (klSizeVisible klscKLayout))
+
+selectIdxByProbability :: Double -> V.Vector PenaltyD -> Int
+selectIdxByProbability r weights = bSearch 0 (V.length weights - 1)
+	where
+	r' = V.sum weights * r
+	subtotals = genSums weights
+	bSearch lo hi
+		| length weights == 0 = 0
+		| subtotalAtGuess < r' = bSearch (guess + 1) hi
+		| subtotalAtGuess - (weights V.! guess) > r' = bSearch lo (guess - 1)
+		| otherwise = guess
 		where
-		freq :: Word64
-		freq = fromMaybe 0 $ M.lookup char hFreqL'
-		freqPerc
-			= floor
-			$ ((fromIntegral freq) / (fromIntegral freqMax :: Double)) * 100000
-		ka = (klKeyboard klscKLayout) V.! idx
-		pen = penaltyAtom ka
-		char = headNote "getRandIndices: zero-length key name detected" str
+		guess = div (lo + hi) 2
+		subtotalAtGuess = atNote "bSearch: oops" subtotals guess
+
+genSums :: V.Vector PenaltyD -> [PenaltyD]
+genSums pens = reverse . snd $ V.foldl' step (0, []) pens
+	where
+	step (subtotal, acc) p = let
+		p' = subtotal + p
+		in
+		(p', p' : acc)
+\end{code}
+
+\ct{updateKpp} updates the placement penalties for the given indices.
+
+\begin{code}
+updateKpp
+	:: (HashL, FreqMax)
+	-> V.Vector PenaltyD
+	-> KLayout
+	-> [Index]
+	-> V.Vector PenaltyD
+updateKpp (hFreqL, maxL) kpp KLayout{..} idxs
+	= V.unsafeUpd kpp
+	$ zip idxs penalties
+	where
+	penalties = map placementPenalty idxs
+	placementPenalty idx = penPhysical * freqPerc
+		where
+		penPhysical = fromIntegral $ penaltyAtom ka
+		freq = fromIntegral $ fromMaybe 1 $ M.lookup keyChar hFreqL
+		freqPerc = (freq / (fromIntegral maxL :: Double)) * 1000
+		ka = klKeyboard V.! idx
+		keyName = klLayout V.! idx
+		keyChar = headNote "updateKpp: zero-length key name detected" keyName
 
 penaltyAtom :: KeyAtom -> Penalty
 penaltyAtom KeyAtom{..} = kaPenalty + penalizeFinger kaFinger
-
-lookupRanges :: (Integral a, Ord a) => a -> [((a, a), b)] -> Maybe ((a, a), b)
-lookupRanges k ranges = listToMaybe $ filter f ranges
-	where
-	f ((i, j), _) = i <= k && k <= j
-
-mkRanges :: (Integral a, Num a) => [(a, b)] -> [((a, a), b)]
-mkRanges = snd . foldl step (0, [])
-	where
-	step (offset, acc) (size, b)
-		= (offset + size, (mkRange size offset, b) : acc)
-\end{code}
-
-\ct{mkRange} produces ranges which we can use for selecting the ``winning'' index for \ct{getRandIndices}.
-If size is 1 and offset is 0, then we get the range (0, 0), because this  denotes that the values that can fall inside it start at 0 and end at 0 (i.e., only 0 itself would work); there there is one 0, it is of size 1.
-
-\begin{code}
-mkRange :: (Integral a, Num a) => a -> a -> (a, a)
-mkRange size offset
-	| size < 1 = error "mkRange: size < 1"
-	| otherwise = (offset, offset + size - 1)
-\end{code}
-
-The \textbf{baseline} ``tax'' in \ct{normalizePenalties} is necessary to prevent the case where the ``least desirable'' (most well-positioned) key gets a penalty of 0.
-We still want to introduce the possibliity of selecting this key at random, in the spirit of real ``mutation''.
-Giving all values a baseline gives every key a random selection ``surface area'' greater than 0.
-
-\begin{code}
-normalizePenalties :: [Penalty] -> [Penalty]
-normalizePenalties ps
-	= map ((+baseline) . normalizePenalty) ps
-	where
-	penaltyMin = minimum ps
-	normalizePenalty p
-		| penaltyMin < 0 = p + (negate penaltyMin)
-		| otherwise = p - penaltyMin
-	baseline
-		= (\(a:b:[]) -> b - a)
-		. takeExactNote "baseline calculation error" 2
-		. sort
-		$ map normalizePenalty ps
-
-safeSum :: [Int] -> Integer
-safeSum xs = sum $ map toInteger xs
 \end{code}
 
 \ct{exaggeratePenalties} checks for possible integer bounds overflow.
