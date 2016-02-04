@@ -34,11 +34,10 @@ data KLSearchCtx = KLSearchCtx
 	{ klscConstraints :: Constraints
 	, klscCorpus :: T.Text
 	, klscFreqL :: (HashL, FreqMax)
-	, klscFreqB :: (HashB, FreqMax)
+	, klscFreqBW :: HashBW
 	, klscFreqW :: (HashW, FreqMax)
 	, klscFreqWTrunc :: [(T.Text, Word64)]
 	, klscFreqLW :: HashLW
-	, klscFreqBW :: HashBW
 	, klscKLayout :: KLayout
 	, klscKeyPlacementPenalty :: V.Vector PenaltyD
 	}
@@ -114,7 +113,7 @@ instance Annealable KLSearchCtx where
 		step h (k, v) = M.adjust (\_ -> v) k h
 	energy KLSearchCtx{..}
 		= penalizeFreqL klscFreqL klscFreqLW klscKLayout
-		+ penalizeFreqB klscFreqB klscFreqBW klscKLayout
+		+ penalizeFreqB klscFreqBW klscKLayout
 \end{code}
 
 \ct{getRandIndices} is important in simulating the idea of natural selection.
@@ -235,13 +234,12 @@ penalizeFreqL hl@(h, _) hw kl = M.foldlWithKey' step 0 h
 	step acc char _ = acc + penalizeChar hl hw char kl
 
 penalizeFreqB
-	:: (HashB, FreqMax)
-    -> HashBW
+	:: HashBW
     -> KLayout
     -> Penalty
-penalizeFreqB hb@(h, _) hw kl = M.foldlWithKey' step 0 h
+penalizeFreqB hbw kl = M.foldlWithKey' step 0 hbw
 	where
-	step acc bigram _ = acc + penalizeBigram hb hw bigram kl
+	step acc bigram freq = acc + penalizeBigram bigram freq kl
 \end{code}
 
 \begin{code}
@@ -278,21 +276,12 @@ Both \ct{charWordImportance} and \ct{bwImportance} follow the same philosophy in
 
 \begin{code}
 penalizeBigram
-	:: (HashB, FreqMax)
-    -> HashBW
-	-> Bigram
+	:: Bigram
+    -> PenaltyD
     -> KLayout
     -> Penalty
-penalizeBigram (hb, maxB) hbw bigram kl@KLayout{..}
-	= case M.lookup bigram hb of
-	Just freq -> let
-		freq' = fromIntegral freq
-		maxB' = fromIntegral maxB
-		bImportance = freq' / maxB' * 1000 :: Double
-		penaltyFactor = floor (bImportance * bwImportance)
-		in
-		(penaltyFactor * penaltiesFinger) + penaltyHand
-	Nothing -> 0
+penalizeBigram bigram freq kl@KLayout{..}
+	= (floor $ fromIntegral penaltiesFinger * freq) + penaltyHand
 	where
 	(char0, char1) = bigram
 	ka0 = getKeyAtom kl char0
@@ -308,9 +297,6 @@ penalizeBigram (hb, maxB) hbw bigram kl@KLayout{..}
 		return $ if (kaHand ka0 == kaHand ka1)
 			then 5
 			else 0
-	bwImportance = case M.lookup bigram hbw of
-		Just pen -> pen
-		Nothing -> 1
 
 getKeyAtom :: KLayout -> Char -> KeyAtom
 getKeyAtom KLayout{..} c = fromJustNote "getKeyAtom" $ do

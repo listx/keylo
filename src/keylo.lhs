@@ -44,17 +44,16 @@ keylo opts@Opts{..} = do
 			{ klscConstraints = constraintDefault
 			, klscCorpus = src
 			, klscFreqL = (hashL, findMaxVal hashL)
-			, klscFreqB = (hashB, findMaxVal hashB)
+			, klscFreqBW = hBW
 			, klscFreqW = (thw, maxW)
 			, klscFreqWTrunc = lstW
 			, klscFreqLW = hLW
-			, klscFreqBW = hBW
 			, klscKLayout = nisse
 			, klscKeyPlacementPenalty
 				= updateKpp (hashL, findMaxVal hashL) initialKpp nisse [0..(V.length initialKpp - 1)]
 			}
-		thw = truncateHash hashW 3000
 		maxW = findMaxVal hashW
+		thw = truncateHash hashW 3000
 		lstW = truncateHashTop thw 60
 		hLW = charsWeighted (lstW, maxW)
 		hBW = bigramsWeighted (lstW, maxW)
@@ -83,6 +82,10 @@ keylo opts@Opts{..} = do
 	optimized <- genLayout opts klsc
 	let
 		e2 = fromIntegral $ energy optimized
+	putStrLn . ("Top N words considered: " ++) . show . length $ lstW
+	putStrLn . ("Total unique bigrams detected: "++) . show . length $ M.toList $ hashB
+	putStrLn . ("Unique bigrams to be used for evaluation: "++) . show . length $ M.toList $ hBW
+	ruler
 	putStrLn "optimized"
 	ruler
 	putStrLn $ show optimized
