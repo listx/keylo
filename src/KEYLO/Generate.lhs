@@ -97,11 +97,19 @@ instance Annealable KLSearchCtx where
 		let
 			KLayout{..} = klscKLayout
 		(i, j) <- getRandIndices klsc rng
+		let
+			l = swapIdx i j klLayout
 		return $ klsc
 			{ klscKLayout = klscKLayout
-				{ klLayout = swapIdx i j klLayout
+				{ klLayout = l
+				, klLayoutIdx = foldl' step klLayoutIdx
+					[ (l V.! i, i)
+					, (l V.! j, j)
+					]
 				}
 			}
+		where
+		step h (k, v) = M.adjust (\_ -> v) k h
 	energy KLSearchCtx{..}
 		= penalizeFreqL klscFreqL klscFreqLW klscKLayout
 		+ penalizeFreqB klscFreqB klscFreqBW klscKLayout
@@ -334,7 +342,7 @@ penaltyFingerBase kl c = fromMaybe 1 $ (penalizeAtom <$> getKeyAtom kl c)
 getKeyAtom :: KLayout -> Char -> Maybe KeyAtom
 getKeyAtom KLayout{..} c = do
 	str <- M.lookup c klCtkn
-	idx <- V.findIndex (==str) klLayout
+	idx <- M.lookup str klLayoutIdx
 	klKeyboard V.!? idx
 \end{code}
 

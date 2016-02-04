@@ -114,6 +114,7 @@ type KeyAtomRaw = (Col, Row, KeyName, Penalty)
 type KeyboardAtomRawSingle = (HFinger, KeyAtomRaw)
 type KeyboardAtomRaw = (HFinger, [KeyAtomRaw])
 type KeyboardRaw = [KeyboardAtomRaw]
+type Index = Int
 data KeyAtom = KeyAtom
 	{ kaHand :: Hand
 	, kaFinger :: Finger
@@ -124,6 +125,7 @@ data KLayout = KLayout
 	{ klName :: String
 	, klLayout :: V.Vector KeyName
 	, klKeyboard :: V.Vector KeyAtom
+	, klLayoutIdx :: M.Map KeyName Index
 	, klSize :: Int
 	, klSizeVisible :: Int
 	, klCtkn :: CharToKeyName
@@ -171,6 +173,7 @@ nisse = KLayout
 	{ klName = "nisse"
 	, klLayout = V.fromList keyNames
 	, klKeyboard = V.fromList keyAtoms
+	, klLayoutIdx = M.fromList $ zip keyNames [0..]
 	, klSize = sameSize keyNames keyAtoms
 	, klSizeVisible
 		= length
