@@ -294,8 +294,7 @@ penalizeBigram (hb, maxB) hbw bigram kl@KLayout{..}
 		(penaltyFactor * penaltiesFinger) + penaltyHand
 	Nothing -> 0
 	where
-	char0 = T.index bigram 0
-	char1 = T.index bigram 1
+	(char0, char1) = bigram
 	penaltiesFinger
 		= penaltyFingerBase kl char0
 		+ penaltyFingerBase kl char1

@@ -16,7 +16,7 @@ import Prelude hiding (Word)
 import qualified Text.Printf as TP
 
 type FreqMax = Word64
-type Bigram = T.Text
+type Bigram = (Char, Char)
 type Word = T.Text
 type HashL = M.Map Char Word64
 type HashB = M.Map Bigram Word64
@@ -54,14 +54,13 @@ freqB = M.foldlWithKey step M.empty
 	step hashB w n = case T.length w of
 		0 -> error "OOPS! HashW included a zero-length word"
 		1 -> hashB
-		2 -> M.insertWith (+) w n hashB
+		2 -> M.insertWith (+) (T.index w 0, T.index w 1) n hashB
 		_ -> foldl (insertBigrams n) hashB $ bigrams w
-	insertBigrams n hashB' bigram = M.insertWith (+) bigram n hashB'
+	insertBigrams n hashB' bigram
+		= M.insertWith (+) bigram n hashB'
 
-bigrams :: T.Text -> [T.Text]
-bigrams word = map (\(a, b) -> T.cons a $ T.cons b T.empty)
-	. T.zip word
-	$ T.drop 1 word
+bigrams :: T.Text -> [Bigram]
+bigrams word = T.zip word $ T.drop 1 word
 \end{code}
 
 \ct{freqW} counts word frequency. A ``word'' is processed as follows:
