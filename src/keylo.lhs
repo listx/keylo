@@ -97,7 +97,9 @@ keylo opts@Opts{..} = do
 \begin{code}
 genLayout :: Opts -> KLSearchCtx -> IO KLSearchCtx
 genLayout Opts{..} klsc0 = do
-	rng <- createSystemRandom
+	rng <- case rng_seed of
+		Just (s1, s2) -> initialize s1 s2
+		Nothing -> createSystemRandom
 	klsc1@KLSearchCtx{..} <- case algorithm of
 		ARandom -> randSearch klsc0 time rng
 		ASimAnneal -> anneal klsc0 time rng

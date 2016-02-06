@@ -7,6 +7,7 @@
 module KEYLO.Option where
 
 import Data.Maybe
+import Data.Word
 import System.Console.CmdArgs.Implicit
 import System.Directory
 
@@ -18,6 +19,7 @@ data Opts = Opts
 	{ algorithm :: Algorithm
 	, blacklist :: FilePath
 	, corpus :: FilePath
+	, rng_seed :: Maybe (Word64, Word64)
 	, time :: Int
 	} deriving (Data, Typeable, Show, Eq)
 
@@ -29,6 +31,8 @@ optsDefault = Opts
 		"location of the file containing words not considered as part of the corpus"
 	, corpus = "" &= typFile &= help
 		"localtion of the file that lists other files of raw text, one on each line"
+	, rng_seed = Nothing &= typ "NUM64,NUM64" &= help
+		"seed of a generator; we use the PCG RNG which uses two 64-bit unsigned numbers as a seed"
 	, time = 1000 &= help
 		"length of iterations to run the annealing process; the longer it is the more accurate; default 1000"
 	}
