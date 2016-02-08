@@ -40,6 +40,7 @@ data KLSearchCtx = KLSearchCtx
 	, klscFreqLW :: HashLW
 	, klscKLayout :: KLayout
 	, klscKeyPlacementPenalty :: V.Vector PenaltyD
+	, klscCoolingChart :: [(Int, Energy)]
 	}
 
 instance Show KLSearchCtx where
@@ -344,21 +345,39 @@ type Temperature = Double
 type Energy = Int
 type Probability = Double
 
-anneal :: (Show a, Annealable a) => a -> TimeMax -> GenIO -> IO a
-anneal st tMax rng
-	= foldM (annealStep rng) st
+anneal
+	:: (Show a, Annealable a)
+	=> Maybe FilePath
+	-> a
+	-> TimeMax
+    -> GenIO
+    -> IO (a, [(Int, Energy)])
+anneal cooling_chart st tMax rng
+	= foldM (annealStep cooling_chart rng) (st, [])
+	. zip [1..tMax]
 	$ map (temperature tMax) [1..tMax]
 
-annealStep :: (Show a, Annealable a) => GenIO -> a -> Temperature -> IO a
-annealStep rng st0 t = do
+annealStep
+	:: (Show a, Annealable a)
+	=> Maybe FilePath
+    -> GenIO
+    -> (a , [(Int, Energy)])
+    -> (Int, Temperature)
+	-> IO (a, [(Int, Energy)])
+annealStep cooling_chart rng (st0, bs) (time, temp) = do
 	r <- uniformR (0.0, 1.0) rng
 	st1 <- mutate st0 rng
 	let
 		e1 = energy st1
-		shouldMutate = probability e0 e1 t > r
-	if shouldMutate
-		then return st1
-		else return st0
+		shouldMutate = probability e0 e1 temp > r
+		a = if shouldMutate
+			then st1
+			else st0
+	return $ if
+		| isJust cooling_chart
+			&& shouldMutate
+			&& e1 < e0 -> (a, (time, e1):bs)
+		| otherwise -> (a, bs)
 	where
 	e0 = energy st0
 \end{code}
@@ -388,19 +407,36 @@ probability e0 e1 t = exp (fromIntegral (e0 - e1) / t)
 The theory is that this will quickly lead to the solution space becoming trapped into a local minimum..
 
 \begin{code}
-randSearch :: (Show a, Annealable a) => a -> TimeMax -> GenIO -> IO a
-randSearch st tMax rng
-	= foldM (randStep rng) st [1..tMax]
+randSearch
+	:: (Show a, Annealable a)
+	=> Maybe FilePath
+	-> a
+	-> TimeMax
+	-> GenIO
+    -> IO (a, [(Int, Energy)])
+randSearch cooling_chart st tMax rng
+	= foldM (randStep cooling_chart rng) (st, []) [1..tMax]
 
-randStep :: (Show a, Annealable a) => GenIO -> a -> Int -> IO a
-randStep rng st0 _ = do
+randStep
+	:: (Show a, Annealable a)
+	=> Maybe FilePath
+	-> GenIO
+    -> (a, [(Int, Energy)])
+    -> Int
+    -> IO (a, [(Int, Energy)])
+randStep cooling_chart rng (st0, bs) time = do
 	st1 <- mutate st0 rng
 	let
 		e1 = energy st1
 		shouldMutate = e1 < e0
-	if shouldMutate
-		then return st1
-		else return st0
+		a = if shouldMutate
+			then st1
+			else st0
+	return $ if
+		| isJust cooling_chart
+			&& shouldMutate
+			&& e1 < e0 -> (a, (time, e1):bs)
+		| otherwise -> (a, bs)
 	where
 	e0 = energy st0
 \end{code}

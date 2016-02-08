@@ -18,6 +18,7 @@ import KEYLO.Util
 data Opts = Opts
 	{ algorithm :: Algorithm
 	, blacklist :: FilePath
+	, cooling_chart :: Maybe FilePath
 	, corpus :: FilePath
 	, rng_seed :: Maybe (Word64, Word64)
 	, time :: Int
@@ -29,6 +30,8 @@ optsDefault = Opts
 		""
 	, blacklist = "" &= typFile &= help
 		"location of the file containing words not considered as part of the corpus"
+	, cooling_chart = Nothing &= typFile &= help
+		"for debugging purposes; print out data points of time vs energy (cooling rate), for every N mutations"
 	, corpus = "" &= typFile &= help
 		"localtion of the file that lists other files of raw text, one on each line"
 	, rng_seed = Nothing &= typ "NUM64,NUM64" &= help

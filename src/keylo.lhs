@@ -7,6 +7,7 @@ module Main where
 
 import Control.Monad
 import qualified Data.Map.Strict as M
+import Data.Maybe
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 import qualified Data.Vector as V
@@ -51,6 +52,7 @@ keylo opts@Opts{..} = do
 			, klscKLayout = nisse
 			, klscKeyPlacementPenalty
 				= updateKpp (hashL, findMaxVal hashL) initialKpp nisse [0..(V.length initialKpp - 1)]
+			, klscCoolingChart = []
 			}
 		maxW = findMaxVal hashW
 		thw = truncateHash hashW 3000
@@ -82,6 +84,7 @@ keylo opts@Opts{..} = do
 	optimized <- genLayout opts klsc
 	let
 		e2 = fromIntegral $ energy optimized
+		chart = klscCoolingChart optimized
 	putStrLn . ("Top N words considered: " ++) . show . length $ lstW
 	putStrLn . ("Total unique bigrams detected: "++) . show . length $ M.toList $ hashB
 	putStrLn . ("Unique bigrams to be used for evaluation: "++) . show . length $ M.toList $ hBW
@@ -90,6 +93,10 @@ keylo opts@Opts{..} = do
 	ruler
 	putStrLn $ show optimized
 	TP.printf "Energy loss: %.2f%%" (energyLossPerc e1 e2)
+	when (length chart /= 0) $ do
+		let
+			plotPoints = T.pack . unlines $ map showTupleAsColumns chart
+		T.writeFile (fromJust cooling_chart) plotPoints
 	where
 	ruler = putStrLn $ replicate 80 '-'
 \end{code}
@@ -100,11 +107,12 @@ genLayout Opts{..} klsc0 = do
 	rng <- case rng_seed of
 		Just (s1, s2) -> initialize s1 s2
 		Nothing -> createSystemRandom
-	klsc1@KLSearchCtx{..} <- case algorithm of
-		ARandom -> randSearch klsc0 time rng
-		ASimAnneal -> anneal klsc0 time rng
+	(klsc1@KLSearchCtx{..}, dataPoints) <- case algorithm of
+		ARandom -> randSearch cooling_chart klsc0 time rng
+		ASimAnneal -> anneal cooling_chart klsc0 time rng
 	return $ klsc1
 		{ klscKLayout = syncKLayout klscKLayout
+		, klscCoolingChart = reverse dataPoints
 		}
 
 genLayouts :: Opts -> KLSearchCtx -> Int -> IO [KLSearchCtx]

@@ -28,6 +28,9 @@ parens = ("(", ")")
 bracks = ("[", "]")
 braces = ("{", "}")
 sSpaces = (" ", " ")
+
+showTupleAsColumns :: (Show a, Show b) => (a, b) -> String
+showTupleAsColumns (a, b) = show a ++ " " ++ show b
 \end{code}
 
 These are some basic error-logging/exiting functions.
