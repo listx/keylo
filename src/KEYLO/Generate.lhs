@@ -414,9 +414,10 @@ In comparison, a cooling rate of 50 would get us to 0.4 temperature when we're o
 
 \begin{code}
 temperature :: TimeMax -> TimeCur -> Temperature
-temperature tMax tCur = 1.0 - (t / (t + ((1 - t))^(2::Int) ))
+temperature tMax tCur = exp (-t * cr)
 	where
 	t = fromIntegral tCur / fromIntegral tMax
+	cr = 5
 
 probability :: Energy -> Energy -> Temperature -> Probability
 probability e0 e1 t = exp (fromIntegral (e0 - e1) / t)
