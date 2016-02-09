@@ -115,6 +115,7 @@ instance Annealable KLSearchCtx where
 	energy KLSearchCtx{..}
 		= penalizeFreqL klscFreqL klscFreqLW klscKLayout
 		+ penalizeFreqB klscFreqBW klscKLayout
+		+ penalizeHandBalance klscFreqL klscKLayout
 \end{code}
 
 \ct{getRandIndices} is important in simulating the idea of natural selection.
@@ -241,6 +242,24 @@ penalizeFreqB
 penalizeFreqB hbw kl = M.foldlWithKey' step 0 hbw
 	where
 	step acc bigram freq = acc + penalizeBigram bigram freq kl
+
+penalizeHandBalance
+	:: (HashL, FreqMax)
+    -> KLayout
+    -> Penalty
+penalizeHandBalance (h, fMax) kl
+	= floor
+	. (*500)
+	. imbalance
+	$ M.foldlWithKey' step (0, 0) h
+	where
+	step (ls, rs) char freq
+		| kaHand == HandL = (n + ls, rs)
+		| otherwise = (ls, n + rs)
+		where
+		KeyAtom{..} = getKeyAtom kl char
+		n = weightedScale (fromIntegral freq) (fromIntegral fMax)
+	imbalance (a, b) = abs (a - b)
 \end{code}
 
 \begin{code}
