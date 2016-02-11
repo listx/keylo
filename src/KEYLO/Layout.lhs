@@ -126,6 +126,7 @@ data KLayout = KLayout
 	, klSizeVisible :: Int
 	, klCtkn :: CharToKeyName
 	, klRaw :: KeyboardRaw
+	, klBlackList :: String
 	}
 \end{code}
 
@@ -174,20 +175,22 @@ nisse = KLayout
 	, klSizeVisible
 		= length
 		. fst
-		$ partition (flip elem $ map (:[]) letters) keyNames
+		$ partition (flip elem . map (:[]) $ letters \\ blacklist) keyNames
 	, klCtkn = charNameHashAscii
 	, klRaw = nisseKeys
+	, klBlackList = blacklist
 	}
 	where
+	blacklist = "hjkl"
 	sameSize xs ys
 		| length xs /= length ys = error "xs/ys length mismatch"
 		| otherwise = length xs - 1
 	keyNames
 		= map (\(_, (_, _, name, _)) -> name)
-		$ sortByVisiblesAndPenalty nisseKeys
+		$ sortByVisiblesAndPenalty nisseKeys blacklist
 	keyAtoms
 		= map (\((h, f), (c, r, _, p)) -> KeyAtom h f (c, r) p)
-		$ sortByVisiblesAndPenalty nisseKeys
+		$ sortByVisiblesAndPenalty nisseKeys blacklist
 	nisseKeys = map primizePens
 		[
 			( (HandL, FPinky)
@@ -300,8 +303,8 @@ To prevent this, we alternate between the left hand and right hand; this is what
 \label{sortByVisiblesAndPenalty}
 \subsection{hoola}
 \begin{code}
-sortByVisiblesAndPenalty :: KeyboardRaw -> [KeyboardAtomRawSingle]
-sortByVisiblesAndPenalty kr0 = a1 ++ b
+sortByVisiblesAndPenalty :: KeyboardRaw -> String -> [KeyboardAtomRawSingle]
+sortByVisiblesAndPenalty kr0 blacklist = a1 ++ b
 	where
 	a1 = alternateKeys a1l a1r
 	a1l = sortBy compPenalty a0l
@@ -317,7 +320,7 @@ sortByVisiblesAndPenalty kr0 = a1 ++ b
 	handIs hand ((h, _), _) = hand == h
 	(a0, b) = partition (\(_, (_, _, name, _)) -> elem name letterNames) kr1
 	kr1 = concatMap expandBySnd kr0
-	letterNames = map (:[]) letters
+	letterNames = map (:[]) $ letters \\ blacklist
 \end{code}
 
 \ct{zipKeys} is necessary because it may be the case that two hands have an unequal number of letter-based keys.
