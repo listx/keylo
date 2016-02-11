@@ -181,7 +181,7 @@ nisse = KLayout
 	, klBlackList = blacklist
 	}
 	where
-	blacklist = "hjkl"
+	blacklist = ""
 	sameSize xs ys
 		| length xs /= length ys = error "xs/ys length mismatch"
 		| otherwise = length xs - 1
