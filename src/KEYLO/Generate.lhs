@@ -304,11 +304,19 @@ penalizeBigram
     -> KLayout
     -> Penalty
 penalizeBigram bigram freq kl@KLayout{..}
-	= penaltiesFinger + penaltyHand
+	= penaltiesFinger
+	+ penaltyHand
+	+ penaltyVertTravel
 	where
 	(char0, char1) = bigram
 	ka0 = getKeyAtom kl char0
 	ka1 = getKeyAtom kl char1
+	(x0, y0) = kaColRow ka0
+	(x1, y1) = kaColRow ka1
+	f0 = kaFinger ka0
+	f1 = kaFinger ka1
+	h0 = kaHand ka0
+	h1 = kaHand ka1
 	penaltiesFinger
 		= (floor $ freq * (fromIntegral $ penalizeAtom ka0 + penalizeAtom ka1))
 		+ (penaltyFingerSame * (floor $ freq * 1000 ** 2))
@@ -317,8 +325,29 @@ penalizeBigram bigram freq kl@KLayout{..}
 		| otherwise = 0
 	penaltyHand
 		| ka0 == ka1 = 0
-		| kaHand ka0 == kaHand ka1 = div penaltiesFinger 2
+		| h0 == h1 = div penaltiesFinger 2
 		| otherwise = 0
+	penaltyVertTravel
+		| ka0 == ka1 = 0
+		| h0 == h1 = penaltiesFinger * dist
+		| otherwise = 0
+		where
+		dist
+			| f0 == f1 && h0 == h1 = distSameFinger
+			| otherwise = distDiffFinger
+		distSameFinger
+			-- Horizontal same-finger movement is terrible, worse than
+			-- same-finger vertical movement. This is the worst!
+			| y0 == y1 = 5
+			| x0 == x1 = 1 + abs (y0 - y1)
+			| otherwise = 1
+		-- If we're using different fingers, then key travel isn't such a big
+		-- deal. If we're on the same hand though, then give a small penalty for
+		-- rolling outwards (in the order index->middle->ring->pinky) instead of
+		-- inwards (pinky->ring->middle->index).
+		distDiffFinger
+			| h0 == h1 && f1 > f0 = 2
+			| otherwise = 1
 
 getKeyAtom :: KLayout -> Char -> KeyAtom
 getKeyAtom KLayout{..} c = fromJustNote "getKeyAtom" $ do
