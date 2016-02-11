@@ -116,7 +116,7 @@ data KeyAtom = KeyAtom
 	, kaFinger :: Finger
 	, kaColRow :: ColRow
 	, kaPenalty :: Penalty
-	} deriving (Show)
+	} deriving (Eq, Show)
 data KLayout = KLayout
 	{ klName :: String
 	, klLayout :: V.Vector KeyName
@@ -340,11 +340,11 @@ alternateKeys xs ys
 
 penalizeFinger :: Finger -> Penalty
 penalizeFinger f = case f of
-	FPinky -> 4
-	FRing -> 3
+	FPinky -> 6
+	FRing -> 4
 	FMiddle -> 1
-	FIndex -> 2
-	FThumb -> 5
+	FIndex -> 3
+	FThumb -> 10
 \end{code}
 
 We need a way of showing \ct{KLayout} in a human-friendly way.

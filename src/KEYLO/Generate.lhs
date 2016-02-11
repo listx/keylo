@@ -304,22 +304,21 @@ penalizeBigram
     -> KLayout
     -> Penalty
 penalizeBigram bigram freq kl@KLayout{..}
-	= (floor $ fromIntegral penaltiesFinger * freq) + penaltyHand
+	= penaltiesFinger + penaltyHand
 	where
 	(char0, char1) = bigram
 	ka0 = getKeyAtom kl char0
 	ka1 = getKeyAtom kl char1
 	penaltiesFinger
-		= penalizeAtom ka0
-		+ penalizeAtom ka1
-		+ (penaltyFingerSame * (floor $ freq * 100 ** 2))
+		= (floor $ freq * (fromIntegral $ penalizeAtom ka0 + penalizeAtom ka1))
+		+ (penaltyFingerSame * (floor $ freq * 1000 ** 2))
 	penaltyFingerSame
 		| char0 == char1 = penalizeAtom ka0
 		| otherwise = 0
-	penaltyHand = fromMaybe 0 $ do
-		return $ if (kaHand ka0 == kaHand ka1)
-			then 5
-			else 0
+	penaltyHand
+		| ka0 == ka1 = 0
+		| kaHand ka0 == kaHand ka1 = div penaltiesFinger 2
+		| otherwise = 0
 
 getKeyAtom :: KLayout -> Char -> KeyAtom
 getKeyAtom KLayout{..} c = fromJustNote "getKeyAtom" $ do
