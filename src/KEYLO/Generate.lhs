@@ -101,14 +101,17 @@ instance Annealable KLSearchCtx where
 		(i, j) <- getRandIndices klsc rng
 		let
 			l = swapIdx i j klLayout
-		return $ klsc
-			{ klscKLayout = klscKLayout
+			kl = klscKLayout
 				{ klLayout = l
 				, klLayoutIdx = foldl' step klLayoutIdx
 					[ (l V.! i, i)
 					, (l V.! j, j)
 					]
 				}
+		return $ klsc
+			{ klscKLayout = kl
+			, klscKeyPlacementPenalty
+				= updateKpp klscFreqL klscKeyPlacementPenalty kl [0..(V.length klscKeyPlacementPenalty - 1)]
 			}
 		where
 		step h (k, v) = M.adjust (\_ -> v) k h
