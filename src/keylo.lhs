@@ -42,7 +42,7 @@ keylo opts@Opts{..} = do
 	src <- liftM T.concat . mapM (T.readFile . T.unpack) $ T.lines fileList
 	let
 		klsc = KLSearchCtx
-			{ klscConstraints = constraintDefault
+			{ klscMPenalties = mPenaltiesDefault
 			, klscCorpus = src
 			, klscFreqL = (hashL, findMaxVal hashL)
 			, klscFreqBW = hBW

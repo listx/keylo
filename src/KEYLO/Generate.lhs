@@ -31,7 +31,7 @@ data Algorithm
 type PenaltyD = Double
 
 data KLSearchCtx = KLSearchCtx
-	{ klscConstraints :: Constraints
+	{ klscMPenalties :: MPenalties
 	, klscCorpus :: T.Text
 	, klscFreqL :: (HashL, FreqMax)
 	, klscFreqBW :: HashBW

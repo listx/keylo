@@ -37,23 +37,19 @@ type Row = Int
 type ColRow = (Col, Row)
 \end{code}
 
-Constraints are used to tie down some settings manually; for example, you might want to use a particular finger for a particular physical key, or state that some keys will be used by a finger at a particular ColRow.
+\ct{MPenalties} are used to tie down some settings manually; for example, you might want to use a particular finger for a particular physical key, or state that some keys will be used by a finger at a particular ColRow.
 Constraints are there to help weed out undesirable configurations.
 
 We use ColRow because the syntax of (Column, Row) retains the traditional mathematical notation of (x, y).
 
 \begin{code}
 type HFinger = (Hand, Finger)
-data Constraints = Constraints
-	{ cFixedKeys :: [Char]
-	, cFingerWhitelist :: M.Map HFinger [KeyName]
-	, cCharBlacklist :: [Char]
+data MPenalties = MPenalties
+	{ mpFavored :: Bool
 	}
-constraintDefault :: Constraints
-constraintDefault = Constraints
-	{ cFixedKeys = []
-	, cFingerWhitelist = M.fromList []
-	, cCharBlacklist = nonLetters
+mPenaltiesDefault :: MPenalties
+mPenaltiesDefault = MPenalties
+	{ mpFavored = True
 	}
 
 nonLetters :: String
