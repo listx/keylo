@@ -202,7 +202,7 @@ updateKpp (hFreqL, maxL) kpp KLayout{..} idxs
 		keyChar = headNote "updateKpp: zero-length key name detected" keyName
 
 penaltyAtom :: KeyAtom -> Penalty
-penaltyAtom KeyAtom{..} = kaPenalty + penalizeFinger kaFinger
+penaltyAtom KeyAtom{..} = (kaPenalty ^ (2::Int)) + penalizeFinger kaFinger
 \end{code}
 
 \ct{exaggeratePenalties} checks for possible integer bounds overflow.
