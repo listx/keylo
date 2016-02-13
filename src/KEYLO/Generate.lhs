@@ -202,7 +202,13 @@ updateKpp (hFreqL, maxL) kpp KLayout{..} idxs
 		keyChar = headNote "updateKpp: zero-length key name detected" keyName
 
 penaltyAtom :: KeyAtom -> Penalty
-penaltyAtom KeyAtom{..} = (kaPenalty ^ (2::Int)) + penalizeFinger kaFinger
+penaltyAtom KeyAtom{..} = rowPen * (kaPenalty + penalizeFinger kaFinger)
+	where
+	(_, row) = kaColRow
+	rowPen
+		-- Home row is special!
+		| row == 0 = 1
+		| otherwise = abs row
 \end{code}
 
 \ct{exaggeratePenalties} checks for possible integer bounds overflow.
@@ -447,8 +453,8 @@ In comparison, a cooling rate of 50 would get us to 0.4 temperature when we're o
 temperature :: TimeMax -> TimeCur -> Temperature
 temperature tMax tCur = exp (-t * cr)
 	where
-	t = fromIntegral tCur / fromIntegral tMax
-	cr = 5
+	t = fromIntegral tCur / fromIntegral tMax * 3
+	cr = 1
 
 probability :: Energy -> Energy -> Temperature -> Probability
 probability e0 e1 t = exp (fromIntegral (e0 - e1) / t)
