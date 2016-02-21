@@ -258,7 +258,6 @@ penalizeHandBalance
     -> Penalty
 penalizeHandBalance (h, fMax) kl
 	= floor
-	. (*500)
 	. imbalance
 	$ M.foldlWithKey' step (0, 0) h
 	where
@@ -286,7 +285,7 @@ penalizeChar (hl, maxL) hlw char kl@KLayout{..}
 		charImportance = freq' / (maxL' * 1000 :: Double)
 		penaltyFactor = floor (charImportance * charWordImportance)
 		in
-		penaltyFactor * (penalizeAtom (getKeyAtom kl char) * 3)
+		penaltyFactor * (penalizeAtom (getKeyAtom kl char))
 	Nothing -> 0
 	where
 	charWordImportance = case M.lookup char hlw of
@@ -325,7 +324,7 @@ penalizeBigram bigram freq kl@KLayout{..}
 	h1 = kaHand ka1
 	penaltiesFinger
 		= (floor $ freq * (fromIntegral $ penalizeAtom ka0 + penalizeAtom ka1))
-		+ (penaltyFingerSame * (floor $ freq * 1000 ** 2))
+		+ (penaltyFingerSame * (floor $ freq * 1000))
 	penaltyFingerSame
 		| char0 == char1 = penalizeAtom ka0
 		| otherwise = 0
