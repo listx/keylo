@@ -181,7 +181,7 @@ nisse = KLayout
 	, klBlackList = blacklist
 	}
 	where
-	blacklist = ""
+	blacklist = "tsnaeiou"
 	sameSize xs ys
 		| length xs /= length ys = error "xs/ys length mismatch"
 		| otherwise = length xs - 1
@@ -191,37 +191,37 @@ nisse = KLayout
 	keyAtoms
 		= map (\((h, f), (c, r, _, p)) -> KeyAtom h f (c, r) p)
 		$ sortByVisiblesAndPenalty nisseKeys blacklist
-	nisseKeys = map primizePens
+	nisseKeys = checkAlphas $ map primizePens
 		[
 			( (HandL, FPinky)
 			,
-				[ (-2,  1,  xxx, 7), (-1,  1,  "z", 4), ( 0,  1,   "q", 2)
-				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "s", 0)
-				,                    (-1, -1,  xxx, 5), ( 0, -1,   "y", 1)
+				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   "x", 2)
+				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "u", 0)
+				,                    (-1, -1,  xxx, 5), ( 0, -1,   "c", 1)
 				]
 			)
 		,
 			( (HandL, FRing)
 			,
-				[ ( 0,  1,  "r", 1)
-				, ( 0,  0,  "n", 0)
-				, ( 0, -1,  "w", 2)
+				[ ( 0,  1,  "d", 1)
+				, ( 0,  0,  "i", 0)
+				, ( 0, -1,  "f", 2)
 				]
 			)
 		,
 			( (HandL, FMiddle)
 			,
-				[ ( 0,  1,  "g", 1)
-				, ( 0,  0,  "t", 0)
-				, ( 0, -1,  "c", 2)
+				[ ( 0,  1,  "o", 1)
+				, ( 0,  0,  "e", 0)
+				, ( 0, -1,  "r", 2)
 				]
 			)
 		,
 			( (HandL, FIndex)
 			,
-				[ ( 0,  1,  "d", 2), ( 1,  1,  "b", 4), ( 2,  1,  xxx, 6)
-				, ( 0,  0,  "i", 0), ( 1,  0,  "o", 3), ( 2,  0,  xxx, 7)
-				, ( 0, -1,  "m", 1), ( 1, -1,  xxx, 5)
+				[ ( 0,  1,  "j", 2), ( 1,  1,  xxx, 4), ( 2,  1,  xxx, 6)
+				, ( 0,  0,  "a", 0), ( 1,  0,  "m", 3), ( 2,  0,  xxx, 7)
+				, ( 0, -1,  "l", 1), ( 1, -1,  xxx, 5)
 				]
 			)
 		,
@@ -236,33 +236,33 @@ nisse = KLayout
 			)
 		,	( (HandR, FPinky)
 			,
-				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   xxx, 2)
-				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "u", 0)
-				,                    (-1, -1,  xxx, 5), ( 0, -1,   "v", 1)
+				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   "b", 2)
+				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "g", 0)
+				,                    (-1, -1,  xxx, 5), ( 0, -1,   "p", 1)
 				]
 			)
 		,
 			( (HandR, FRing)
 			,
-				[ ( 0,  1,  xxx, 1)
-				, ( 0,  0,  "l", 0)
-				, ( 0, -1,  "x", 2)
+				[ ( 0,  1,  "q", 1)
+				, ( 0,  0,  "n", 0)
+				, ( 0, -1,  "k", 2)
 				]
 			)
 		,
 			( (HandR, FMiddle)
 			,
-				[ ( 0,  1,  xxx, 1)
-				, ( 0,  0,  "k", 0)
-				, ( 0, -1,  "e", 2)
+				[ ( 0,  1,  "h", 1)
+				, ( 0,  0,  "t", 0)
+				, ( 0, -1,  "v", 2)
 				]
 			)
 		,
 			( (HandR, FIndex)
 			,
-				[ ( 0,  1,  "f", 2), ( 1,  1,  "p", 4), ( 2,  1,  xxx, 6)
-				, ( 0,  0,  "j", 0), ( 1,  0,  "h", 3), ( 2,  0,  xxx, 7)
-				, ( 0, -1,  "a", 1), ( 1, -1,  xxx, 5)
+				[ ( 0,  1,  "w", 2), ( 1,  1,  xxx, 4), ( 2,  1,  xxx, 6)
+				, ( 0,  0,  "s", 0), ( 1,  0,  "z", 3), ( 2,  0,  xxx, 7)
+				, ( 0, -1,  "y", 1), ( 1, -1,  xxx, 5)
 				]
 			)
 		,
@@ -282,6 +282,12 @@ nisse = KLayout
 		primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
 		primizePens (h, atoms)
 			= (h, map (\(a, b, c, d) -> (a, b, c, primes !! d)) atoms)
+		checkAlphas xs
+			| sort ys /= letters = error $ "need to set full alphabet; missing "
+				++ (letters \\ sort ys)
+			| otherwise = xs
+			where
+			ys = concatMap (\(_, _, c, _) -> c) $ concatMap snd xs
 \end{code}
 
 We want to prepare our data structure so that it is easier to mutate in a sane manner.

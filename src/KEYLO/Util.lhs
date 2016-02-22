@@ -3,6 +3,7 @@
 \begin{code}
 module KEYLO.Util where
 
+import Data.List
 import System.Exit
 import System.IO
 \end{code}
@@ -61,4 +62,16 @@ Below are some miscellaneous math functions.
 \begin{code}
 energyLossPerc :: Double -> Double -> Double
 energyLossPerc e1 e2 = (1.0 - (e2 / e1)) * 100
+\end{code}
+
+\ct{pickUniq} picks \href{http://stackoverflow.com/questions/11766449/list-all-possible-4-chooses-from-9-in-haskell}{N unique values out of M}.
+
+\begin{code}
+pickUniq :: Int -> [a] -> [[a]]
+pickUniq 0 _ = [[]]
+pickUniq _ [] = []
+pickUniq n (x : xs) = map (x :) (pickUniq (n - 1) xs) ++ pickUniq n xs
+
+perms :: Int -> [a] -> [[a]]
+perms n l = pickUniq n l >>= permutations
 \end{code}
