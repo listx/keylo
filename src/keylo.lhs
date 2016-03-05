@@ -60,7 +60,7 @@ keylo opts@Opts{..} = do
 		hLW = charsWeighted (lstW, maxW)
 		hBW = bigramsWeighted (lstW, maxW)
 		hashL = freqL src
-		hashB = freqB hashW
+		hashB = normalizeFreqB $ freqB hashW
 		hashW = freqW
 			(M.fromList . zip (concatMap T.words $ T.lines blacklistWords) $ repeat True)
 			src

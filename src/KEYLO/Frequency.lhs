@@ -50,7 +50,21 @@ A bigram is a 2-letter sequence found anywhere within a word.
 E.g., the word ``food'' has 3 bigrams --- ``fo'', ``oo'', and ``od''.
 \ct{freqB} depends on the word frequency hash, \ct{HashW}, to provide the corpus of words.
 
+\ct{normalizeFreqB} combines the reverse of a bigram with its non-reversed; e.g., ``fo'' and ``of'' are treated the same (their individual weights are combined, but the keys (both regular and reversed) are both stored for ease of access). It could be that some bigrams are ``loners'' and do not have a reversed counterpart; for these we just add them as-is into the new hash.
+
 \begin{code}
+normalizeFreqB :: HashB -> HashB
+normalizeFreqB oldHash = fst $ M.foldlWithKey step (M.empty, oldHash) oldHash
+	where
+	step (new, old) bigram@(a, b) n = case M.lookup bigramR old of
+		Just m ->
+			( foldl (\hsh k -> M.insert k (n + m) hsh) new [bigram, bigramR]
+			, foldl (flip M.delete) old [bigram, bigramR]
+			)
+		Nothing -> (M.insert bigram n new, old)
+		where
+		bigramR = (b, a)
+
 freqB :: HashW -> HashB
 freqB = M.foldlWithKey step M.empty
 	where
