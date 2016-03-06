@@ -11,6 +11,7 @@ import Data.Maybe
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 import qualified Data.Vector as V
+import Data.Word
 import System.Environment
 import System.Exit
 import System.IO
@@ -103,10 +104,14 @@ keylo opts@Opts{..} = do
 
 \begin{code}
 genLayout :: Opts -> KLSearchCtx -> IO KLSearchCtx
-genLayout Opts{..} klsc0 = do
+genLayout o@Opts{..} k = do
 	rng <- case rng_seed of
 		Just (s1, s2) -> initialize s1 s2
 		Nothing -> createSystemRandom
+	genLayout' o rng k
+
+genLayout' :: Opts -> GenIO -> KLSearchCtx -> IO KLSearchCtx
+genLayout' Opts{..} rng klsc0 = do
 	(klsc1@KLSearchCtx{..}, dataPoints) <- case algorithm of
 		ARandom -> randSearch cooling_chart klsc0 time rng
 		ASimAnneal -> anneal cooling_chart klsc0 time rng
@@ -116,5 +121,14 @@ genLayout Opts{..} klsc0 = do
 		}
 
 genLayouts :: Opts -> KLSearchCtx -> Int -> IO [KLSearchCtx]
-genLayouts o k n = mapM (\_ -> genLayout o k) [1..n]
+genLayouts o@Opts{..} k n = do
+	rngs <- case rng_seed of
+		Just sd -> mkRngs sd
+		Nothing -> do
+			rng <- createSystemRandom
+			s1 <- uniform rng :: IO Word64
+			mkRngs (s1, s1 + 1)
+	mapM (\rng -> genLayout' o rng k) rngs
+	where
+	mkRngs (s1, s2) = mapM (initialize s1) [s2..(s2 + fromIntegral n)]
 \end{code}
