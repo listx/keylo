@@ -30,6 +30,8 @@ data Algorithm
 
 type PenaltyD = Double
 
+type PseudoThreadID = Int
+
 data KLSearchCtx = KLSearchCtx
 	{ klscMPenalties :: MPenalties
 	, klscCorpus :: T.Text
@@ -41,7 +43,9 @@ data KLSearchCtx = KLSearchCtx
 	, klscKLayout :: KLayout
 	, klscKeyPlacementPenalty :: V.Vector PenaltyD
 	, klscCoolingChart :: [(Int, Energy)]
-	}
+	, klscTid :: PseudoThreadID
+	, klscAlgo :: Algorithm
+	} deriving (Eq)
 
 instance Show KLSearchCtx where
 	show klsc@KLSearchCtx{..} = unlines
@@ -407,8 +411,8 @@ anneal
 	-> TimeMax
     -> GenIO
     -> IO (a, [(Int, Energy)])
-anneal cooling_chart st tMax rng
-	= foldM (annealStep cooling_chart rng) (st, [])
+anneal cooling_dir st tMax rng
+	= foldM (annealStep cooling_dir rng) (st, [])
 	. zip [1..tMax]
 	$ map (temperature tMax) [1..tMax]
 
@@ -419,7 +423,7 @@ annealStep
     -> (a , [(Int, Energy)])
     -> (Int, Temperature)
 	-> IO (a, [(Int, Energy)])
-annealStep cooling_chart rng (st0, bs) (time, temp) = do
+annealStep cooling_dir rng (st0, bs) (time, temp) = do
 	r <- uniformR (0.0, 1.0) rng
 	st1 <- mutate st0 rng
 	let
@@ -429,7 +433,7 @@ annealStep cooling_chart rng (st0, bs) (time, temp) = do
 			then st1
 			else st0
 	return $ if
-		| isJust cooling_chart
+		| isJust cooling_dir
 			&& shouldMutate
 			&& e1 < e0 -> (a, (time, e1):bs)
 		| otherwise -> (a, bs)
@@ -470,8 +474,8 @@ randSearch
 	-> TimeMax
 	-> GenIO
     -> IO (a, [(Int, Energy)])
-randSearch cooling_chart st tMax rng
-	= foldM (randStep cooling_chart rng) (st, []) [1..tMax]
+randSearch cooling_dir st tMax rng
+	= foldM (randStep cooling_dir rng) (st, []) [1..tMax]
 
 randStep
 	:: (Show a, Annealable a)
@@ -480,7 +484,7 @@ randStep
     -> (a, [(Int, Energy)])
     -> Int
     -> IO (a, [(Int, Energy)])
-randStep cooling_chart rng (st0, bs) time = do
+randStep cooling_dir rng (st0, bs) time = do
 	st1 <- mutate st0 rng
 	let
 		e1 = energy st1
@@ -489,7 +493,7 @@ randStep cooling_chart rng (st0, bs) time = do
 			then st1
 			else st0
 	return $ if
-		| isJust cooling_chart
+		| isJust cooling_dir
 			&& shouldMutate
 			&& e1 < e0 -> (a, (time, e1):bs)
 		| otherwise -> (a, bs)

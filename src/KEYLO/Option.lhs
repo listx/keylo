@@ -8,6 +8,7 @@ module KEYLO.Option where
 
 import Data.Maybe
 import Data.Word
+import Safe
 import System.Console.CmdArgs.Implicit
 import System.Directory
 
@@ -18,9 +19,11 @@ import KEYLO.Util
 data Opts = Opts
 	{ algorithm :: Algorithm
 	, blacklist :: FilePath
-	, cooling_chart :: Maybe FilePath
+	, chart_dir :: Maybe FilePath
 	, corpus :: FilePath
 	, rng_seed :: Maybe (Word64, Word64)
+	, rounds :: Int
+	, verbose :: Bool
 	, time :: Int
 	} deriving (Data, Typeable, Show, Eq)
 
@@ -30,12 +33,16 @@ optsDefault = Opts
 		""
 	, blacklist = "" &= typFile &= help
 		"location of the file containing words not considered as part of the corpus"
-	, cooling_chart = Nothing &= typFile &= help
-		"for debugging purposes; print out data points of time vs energy (cooling rate), for every N mutations"
+	, chart_dir = Nothing &= typDir &= help
+		"for debugging purposes; print out data points of time vs energy (cooling rate), for every N mutations into the given directory"
 	, corpus = "" &= typFile &= help
 		"localtion of the file that lists other files of raw text, one on each line"
 	, rng_seed = Nothing &= typ "NUM64,NUM64" &= help
 		"seed of a generator; we use the PCG RNG which uses two 64-bit unsigned numbers as a seed"
+	, rounds = 1 &= help
+		"number of times to run the simulation; default 1"
+	, verbose = True &= help
+		"increase verbosity"
 	, time = 1000 &= help
 		"length of iterations to run the annealing process; the longer it is the more accurate; default 1000"
 	}
@@ -57,15 +64,21 @@ getOpts = cmdArgs $ optsDefault
 
 Check for errors, and return an error code (a positive number) if any errors are found.
 
+In \ct{argsCheck'}, we have to pass in \ct{fromMaybe False ...} because otherwise that branch will always execute.
+
 \begin{code}
 argsCheck :: Opts -> IO (Opts, Int)
 argsCheck opts = do
 	corpus_file_not_exists <- fmap not $ doesFileExist (corpus opts)
 	blacklist_file_not_exists <- fmap not $ doesFileExist (blacklist opts)
+	chart_dir_exists <- if isJust (chart_dir opts)
+		then fmap not $ doesDirectoryExist (fromJustNote "argsCheck" $ chart_dir opts)
+		else return False
 	let
 		ioChecksHash =
 			[ ("corpus_file_not_exists", corpus_file_not_exists)
 			, ("blacklist_file_not_exists", blacklist_file_not_exists)
+			, ("chart_dir_exists", chart_dir_exists)
 			]
 	return . (,) opts =<< argsCheck' opts ioChecksHash
 	where
@@ -74,11 +87,16 @@ argsCheck opts = do
 		| fromMaybe True (lookup "corpus_file_not_exists" ich) = do
 			errMsg $ "file" ++ enclose' sQuotes corpus ++ " does not exist"
 			return 1
-		| fromMaybe True (lookup "blacklist_file_not_exists" ich) = do
+		| fromMaybe False (lookup "blacklist_file_not_exists" ich) = do
 			errMsg $ "file" ++ enclose' sQuotes blacklist ++ " does not exist"
+			return 1
+		| fromMaybe False (lookup "chart_dir_exists" ich) = do
+			errMsg $ "directory" ++ enclose' sQuotes chart_dir' ++ " does not exist"
 			return 1
 		| time < 1 = do
 			errMsg "--time cannot be less than 1"
 			return 2
 		| otherwise = return 0
+		where
+		chart_dir' = fromJustNote "argsCheck'" chart_dir
 \end{code}

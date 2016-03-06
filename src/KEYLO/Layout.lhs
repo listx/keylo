@@ -46,7 +46,7 @@ We use ColRow because the syntax of (Column, Row) retains the traditional mathem
 type HFinger = (Hand, Finger)
 data MPenalties = MPenalties
 	{ mpFavored :: Bool
-	}
+	} deriving (Eq)
 mPenaltiesDefault :: MPenalties
 mPenaltiesDefault = MPenalties
 	{ mpFavored = True
@@ -127,7 +127,7 @@ data KLayout = KLayout
 	, klCtkn :: CharToKeyName
 	, klRaw :: KeyboardRaw
 	, klBlackList :: String
-	}
+	} deriving (Eq)
 \end{code}
 
 \ct{nisse} is the ErgoDox-like keyboard from Japan.
