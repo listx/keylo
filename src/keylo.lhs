@@ -100,7 +100,7 @@ presentLayouts opts@Opts{..} blacklistWords src = do
 	ruler
 	ls <- genLayouts opts klsc
 	mapM_ (presentLayout e1) $ histogramize ls
-	writeCharts opts ls
+	when (isJust chart_dir) $ writeCharts opts ls
 
 ruler :: IO ()
 ruler = putStrLn $ replicate 80 '-'
