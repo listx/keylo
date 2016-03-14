@@ -181,7 +181,7 @@ nisse = KLayout
 	, klBlackList = blacklist
 	}
 	where
-	blacklist = "tsnaeiou"
+	blacklist = "tnshaeiouwyzq"
 	sameSize xs ys
 		| length xs /= length ys = error "xs/ys length mismatch"
 		| otherwise = length xs - 1
@@ -196,31 +196,31 @@ nisse = KLayout
 			( (HandL, FPinky)
 			,
 				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   "x", 2)
-				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "u", 0)
+				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "n", 0)
 				,                    (-1, -1,  xxx, 5), ( 0, -1,   "c", 1)
 				]
 			)
 		,
 			( (HandL, FRing)
 			,
-				[ ( 0,  1,  "d", 1)
-				, ( 0,  0,  "i", 0)
+				[ ( 0,  1,  "b", 1)
+				, ( 0,  0,  "s", 0)
 				, ( 0, -1,  "f", 2)
 				]
 			)
 		,
 			( (HandL, FMiddle)
 			,
-				[ ( 0,  1,  "o", 1)
-				, ( 0,  0,  "e", 0)
-				, ( 0, -1,  "r", 2)
+				[ ( 0,  1,  "r", 1)
+				, ( 0,  0,  "t", 0)
+				, ( 0, -1,  "g", 2)
 				]
 			)
 		,
 			( (HandL, FIndex)
 			,
 				[ ( 0,  1,  "j", 2), ( 1,  1,  xxx, 4), ( 2,  1,  xxx, 6)
-				, ( 0,  0,  "a", 0), ( 1,  0,  "m", 3), ( 2,  0,  xxx, 7)
+				, ( 0,  0,  "h", 0), ( 1,  0,  "q", 3), ( 2,  0,  xxx, 7)
 				, ( 0, -1,  "l", 1), ( 1, -1,  xxx, 5)
 				]
 			)
@@ -236,33 +236,33 @@ nisse = KLayout
 			)
 		,	( (HandR, FPinky)
 			,
-				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   "b", 2)
-				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "g", 0)
+				[ (-2,  1,  xxx, 7), (-1,  1,  xxx, 4), ( 0,  1,   "m", 2)
+				, (-2,  0,  xxx, 6), (-1,  0,  xxx, 3), ( 0,  0,   "w", 0)
 				,                    (-1, -1,  xxx, 5), ( 0, -1,   "p", 1)
 				]
 			)
 		,
 			( (HandR, FRing)
 			,
-				[ ( 0,  1,  "q", 1)
-				, ( 0,  0,  "n", 0)
+				[ ( 0,  1,  "y", 1)
+				, ( 0,  0,  "i", 0)
 				, ( 0, -1,  "k", 2)
 				]
 			)
 		,
 			( (HandR, FMiddle)
 			,
-				[ ( 0,  1,  "h", 1)
-				, ( 0,  0,  "t", 0)
+				[ ( 0,  1,  "o", 1)
+				, ( 0,  0,  "e", 0)
 				, ( 0, -1,  "v", 2)
 				]
 			)
 		,
 			( (HandR, FIndex)
 			,
-				[ ( 0,  1,  "w", 2), ( 1,  1,  xxx, 4), ( 2,  1,  xxx, 6)
-				, ( 0,  0,  "s", 0), ( 1,  0,  "z", 3), ( 2,  0,  xxx, 7)
-				, ( 0, -1,  "y", 1), ( 1, -1,  xxx, 5)
+				[ ( 0,  1,  "u", 2), ( 1,  1,  xxx, 4), ( 2,  1,  xxx, 6)
+				, ( 0,  0,  "a", 0), ( 1,  0,  "z", 3), ( 2,  0,  xxx, 7)
+				, ( 0, -1,  "d", 1), ( 1, -1,  xxx, 5)
 				]
 			)
 		,
@@ -346,11 +346,11 @@ alternateKeys xs ys
 
 penalizeFinger :: Finger -> Penalty
 penalizeFinger f = case f of
-	FPinky -> 7
-	FRing -> 5
-	FMiddle -> 2
-	FIndex -> 3
-	FThumb -> 11
+	FMiddle -> 1
+	FIndex -> 5
+	FRing -> 10
+	FPinky -> 20
+	FThumb -> 1000
 \end{code}
 
 We need a way of showing \ct{KLayout} in a human-friendly way.
