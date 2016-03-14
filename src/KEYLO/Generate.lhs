@@ -200,7 +200,7 @@ updateKpp (hFreqL, maxL) kpp KLayout{..} idxs
 		where
 		penPhysical = fromIntegral $ penaltyAtom ka
 		freq = fromIntegral $ fromMaybe 1 $ M.lookup keyChar hFreqL
-		freqPerc = (freq / (fromIntegral maxL :: Double)) * 1000
+		freqPerc = (freq / (fromIntegral maxL :: Double)) * 10000
 		ka = klKeyboard V.! idx
 		keyName = klLayout V.! idx
 		keyChar = headNote "updateKpp: zero-length key name detected" keyName
@@ -228,7 +228,7 @@ safeRaise n e
 
 penalizeAtom :: KeyAtom -> Penalty
 penalizeAtom KeyAtom{..}
-	= pf * (kaPenalty + penalizeColRow kaColRow)
+	= (pf * kaPenalty * penalizeColRow kaColRow) + pf
 	where
 	pf = penalizeFinger kaFinger
 \end{code}
@@ -237,7 +237,7 @@ penalizeAtom KeyAtom{..}
 
 \begin{code}
 penalizeColRow :: ColRow -> Penalty
-penalizeColRow (c, r) = 2 * (abs c + 1) * (abs r + 1)
+penalizeColRow (c, r) = (abs c + 1) * (abs r + 1)
 
 penalizeFreqL
   :: (HashL, FreqMax)
@@ -286,7 +286,7 @@ penalizeChar (hl, maxL) hlw char kl@KLayout{..}
 	Just freq -> let
 		freq' = fromIntegral freq
 		maxL' = fromIntegral maxL
-		charImportance = freq' / (maxL' * 1000 :: Double)
+		charImportance = freq' / (maxL' * 10000 :: Double)
 		penaltyFactor = floor (charImportance * charWordImportance)
 		in
 		penaltyFactor * (penalizeAtom (getKeyAtom kl char))
