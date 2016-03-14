@@ -6,6 +6,8 @@
 
 module Main where
 
+import Control.Concurrent
+import Control.Concurrent.ParallelIO.Local
 import Control.Monad
 import Data.List
 import qualified Data.Map.Strict as M
@@ -44,6 +46,7 @@ keylo opts@Opts{..} = do
 	fileList <- T.readFile corpus
 	blacklistWords <- T.readFile blacklist
 	src <- liftM T.concat . mapM (T.readFile . T.unpack) $ T.lines fileList
+	Control.Concurrent.setNumCapabilities threads
 	presentLayouts opts blacklistWords src
 
 presentLayouts :: Opts -> T.Text -> T.Text -> IO ()
@@ -179,7 +182,8 @@ genLayouts o@Opts{..} k
 			rng = headNote "genLayouts: get head of rngs" rngs
 			rngsRest = tailNote "genLayouts: get tail of rngs" rngs
 		layoutOrig <- genLayout' o rng k
-		layoutsRest <- mapM (genLayoutScramble o k) rngsRest
+		layoutsRest <- withPool threads $ \pool -> do
+			parallel pool $ map (genLayoutScramble o k) rngsRest
 		return
 			$ layoutOrig
 			: (map (\(l, n) -> l {klscTid = n}) $ zip layoutsRest [1..])

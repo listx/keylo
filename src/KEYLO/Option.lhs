@@ -24,6 +24,7 @@ data Opts = Opts
 	, rng_seed :: Maybe (Word64, Word64)
 	, rounds :: Int
 	, verbose :: Bool
+	, threads :: Int
 	, time :: Int
 	} deriving (Data, Typeable, Show, Eq)
 
@@ -43,6 +44,8 @@ optsDefault = Opts
 		"number of times to run the simulation; default 1"
 	, verbose = True &= help
 		"increase verbosity"
+	, threads = 1 &= help
+		"number of threads to use"
 	, time = 1000 &= help
 		"length of iterations to run the annealing process; the longer it is the more accurate; default 1000"
 	}
@@ -93,6 +96,9 @@ argsCheck opts = do
 		| fromMaybe False (lookup "chart_dir_exists" ich) = do
 			errMsg $ "directory" ++ enclose' sQuotes chart_dir' ++ " does not exist"
 			return 1
+		| threads < 1 = do
+			errMsg "--threads cannot be less than 1"
+			return 2
 		| time < 1 = do
 			errMsg "--time cannot be less than 1"
 			return 2
