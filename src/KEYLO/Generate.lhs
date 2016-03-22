@@ -411,10 +411,28 @@ anneal
 	-> TimeMax
     -> GenIO
     -> IO (a, [(Int, Energy)])
-anneal cooling_dir st tMax rng
-	= foldM (annealStep cooling_dir rng) (st, [])
-	. zip [1..tMax]
-	$ map (temperature tMax) [1..tMax]
+anneal cooling_dir st tMax rng = do
+	ts <- getTimes
+	foldM (annealStep cooling_dir rng) (st, [])
+		. zip [1..tMax]
+		$ map (temperature tMax) ts
+	where
+	getTimes :: IO [Int]
+	getTimes = return . reverse =<< foldM step [1::Int] [1..tMax]
+	step acc _ = do
+		let
+			tCur = headNote "anneal" acc
+			tMax' = fromIntegral tMax :: Double
+			tCur' = fromIntegral tCur :: Double
+			continueUnchanged = (tCur + 1) : acc
+		restartMark <- return . (1/) =<< uniformR (2.0, 10.0) rng
+		if ((tCur' / tMax') >= restartMark)
+			then do
+				r <- uniformR (0.0, 1.0) rng :: IO Double
+				if r >= 0.99
+					then return (1 : acc)
+					else return continueUnchanged
+			else return continueUnchanged
 
 annealStep
 	:: (Show a, Annealable a)
