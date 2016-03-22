@@ -101,9 +101,14 @@ presentLayouts opts@Opts{..} blacklistWords src = do
 		ruler
 	putStrLn "optimized layout(s)"
 	ruler
-	ls <- genLayouts opts klsc
-	mapM_ (presentLayout e1) $ histogramize ls
-	when (isJust chart_dir) $ writeCharts opts ls
+
+	l <- reductionLoop opts klsc
+	case l of
+		Just ll -> do
+			putStrLn "Total energy reduction"
+			presentLayout e1 ll
+			when (isJust chart_dir) $ writeChart opts ll
+		Nothing -> putStrLn "Search failed."
 
 ruler :: IO ()
 ruler = putStrLn $ replicate 80 '-'
@@ -112,6 +117,47 @@ ruler = putStrLn $ replicate 80 '-'
 \ct{histogramize} works as follows: sort by equality of klsc, then group by equality, then for each group: count how many there are in the group, then lastly sort again by the count.
 
 \begin{code}
+reductionLoop :: Opts -> KLSearchCtx -> IO (Maybe KLSearchCtx)
+reductionLoop opts@Opts{..} klsc = do
+	ls0 <- genLayouts opts klsc
+	let
+		ls1 = histogramize ls0
+		-- When we sort, lower energy is better, so the "maximum" here is the
+		-- first element of the sorted list.
+		lMax = headNote "reductionLoop" $ sort ls0
+		ls2 = filter (\(cnt, _) -> cnt > (floor $ fromIntegral rounds / (100.0 :: Double))) ls1
+	case ls2 of
+		[] -> do
+			putStrLn "Not layouts repeated to be >= 1% of the rounds."
+			putStrLn "Going with the maximum choice as the sole candidate."
+			getChoice lMax [(1, lMax)]
+		ls -> getChoice lMax ls
+	where
+	getChoice :: KLSearchCtx -> [(Int, KLSearchCtx)] -> IO (Maybe KLSearchCtx)
+	getChoice lMax ls = do
+		let
+			lsEnum = zip ([1..]::[Int]) ls
+			allowed = map (T.pack . show . fst) lsEnum
+		forM_ lsEnum $ \(n, (cnt, l)) -> do
+			putStrLn $ "Choice: (" ++ show n ++ ")"
+			putStrLn $ "Count: " ++ show cnt
+			presentLayout e1 l
+		putStrLn $ "Choice: (m), (q)"
+		presentLayout e1 lMax
+		putStrLn "Choose layout to continue search. Press `m' to choose high-scoring layout, and `q' to quit with the maximum-valued layout."
+		choice <- T.hGetLine stdin
+		if
+			| choice == "q" -> do
+				return $ Just lMax
+			| choice == "m" -> reductionLoop opts lMax
+			| elem choice allowed -> case lookup choice (zip allowed ls) of
+					Just (_, l) -> reductionLoop opts l
+					Nothing -> return Nothing
+			| otherwise -> do
+				putStrLn $ "Please enter 1.." ++ show (length lsEnum)
+				getChoice lMax ls
+	e1 = fromIntegral $ energy klsc
+
 histogramize :: [KLSearchCtx] -> [(Int, KLSearchCtx)]
 histogramize
 	= sortBy (\(n, _) (m, _) -> compare n m)
@@ -122,16 +168,15 @@ histogramize
 	klscOrd a b = compare (show a) (show b)
 	klscEq a b = show a == show b
 
-presentLayout :: Energy -> (Int, KLSearchCtx) -> IO ()
-presentLayout e1 (cnt, k@KLSearchCtx{..}) = do
+presentLayout :: Energy -> KLSearchCtx -> IO ()
+presentLayout e1 k@KLSearchCtx{..} = do
 	let
 		e2 = fromIntegral $ energy k
 	when (klscTid == 0) $ do
 		ruler
 		putStrLn "Original Layout!"
-	putStrLn $ "COUNT: " ++ show cnt
 	putStrLn $ show k
-	TP.printf "Energy loss: %.2f%%" (energyLossPerc (fromIntegral e1) e2)
+	TP.printf "Energy loss: %.2f%%\n" (energyLossPerc (fromIntegral e1) e2)
 	-- Original (unshuffled) layout.
 	when (klscTid == 0) $ do
 		putStrLn "Original Layout!"

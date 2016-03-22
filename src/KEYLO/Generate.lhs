@@ -52,6 +52,9 @@ instance Show KLSearchCtx where
 		[ show klscKLayout
 		, "energy (penalty): " ++ show (energy klsc)
 		]
+
+instance Ord KLSearchCtx where
+	compare a b = compare (energy a) (energy b)
 \end{code}
 
 \ct{genLayoutFinger}'s \ct{pkeyRank} is probably the most important of all.
