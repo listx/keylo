@@ -360,7 +360,7 @@ penalizeBigram bigram freq kl@KLayout{..}
 	h1 = kaHand ka1
 	penaltiesFinger
 		= (floor $ freq * (fromIntegral $ penalizeAtom ka0 + penalizeAtom ka1))
-		+ (penaltyFingerSame * (floor $ freq * 100 ** 2))
+		+ (penaltyFingerSame * (floor $ freq * 10 ** 1.2))
 	penaltyFingerSame
 		| f0 == f1 = penalizeAtom ka0
 		| otherwise = 0
