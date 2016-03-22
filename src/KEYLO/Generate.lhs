@@ -126,6 +126,7 @@ instance Annealable KLSearchCtx where
 		= penalizeFreqL klscFreqL klscFreqLW klscKLayout
 		+ penalizeFreqB klscFreqBW klscKLayout
 		+ penalizeHandBalance klscFreqL klscKLayout
+--		+ penalizeHJKL klscKLayout
 \end{code}
 
 \ct{getRandIndices} is important in simulating the idea of natural selection.
@@ -259,8 +260,7 @@ penalizeFreqB hbw kl = M.foldlWithKey' step 0 hbw
 	where
 	step acc bigram freq = acc + penalizeBigram bigram freq kl
 
-penalizeHandBalance
-	:: (HashL, FreqMax)
+penalizeHandBalance :: (HashL, FreqMax)
     -> KLayout
     -> Penalty
 penalizeHandBalance (h, fMax) kl
@@ -275,6 +275,35 @@ penalizeHandBalance (h, fMax) kl
 		KeyAtom{..} = getKeyAtom kl char
 		n = weightedScale (fromIntegral freq) (fromIntegral fMax)
 	imbalance (a, b) = abs (a - b)
+
+penalizeHJKL :: KLayout -> Penalty
+penalizeHJKL kl = penalizeHL + penalizeJK + bonusHJKL
+	where
+	kaH = getKeyAtom kl 'h'
+	kaJ = getKeyAtom kl 'j'
+	kaK = getKeyAtom kl 'k'
+	kaL = getKeyAtom kl 'l'
+	(_, yj) = kaColRow kaJ
+	(_, yk) = kaColRow kaK
+	sameHandHL = kaHand kaH == kaHand kaL
+	sameHandJK = kaHand kaJ == kaHand kaK
+	penalizeHL
+		| sameHandHL && kaHand kaH == HandL = if kaFinger kaH > kaFinger kaL
+			then 100
+			else 0
+		| sameHandHL && kaHand kaH == HandR = if kaFinger kaH < kaFinger kaL
+			then 100
+			else 0
+		| kaHand kaH == HandL = 0
+		| otherwise = 100
+	penalizeJK
+		| yj > yk = 100
+		| otherwise = 0
+	bonusHJKL
+		| sameHandHL && sameHandJK = -10000
+		| sameHandHL = -2000
+		| sameHandJK = -2000
+		| otherwise = 0
 \end{code}
 
 \begin{code}
