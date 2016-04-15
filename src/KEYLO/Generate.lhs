@@ -57,32 +57,6 @@ instance Ord KLSearchCtx where
 	compare a b = compare (energy a) (energy b)
 \end{code}
 
-\ct{genLayoutFinger}'s \ct{pkeyRank} is probably the most important of all.
-It ranks every \ct{KeyName} found in \ct{cgh} by \ct{hl} (letter frequency), where the term ``letter'' means any \ct{Char}.
-The ranking of each \ct{KeyName} is then boosted by \ct{hw} (word frequency), according to the following formula: weight each word by its percentage, and then for each word, ``dissect'' it by letter, and assign these points to the letter.
-E.g., if the word ``that'' is worth 15 points (makes up 15\% of all words), then add to the letter ``t'' 30 points because ``t'' occurs 2 times, while ``h'' and ``a'' get 15 points each.
-We only use words with at least 0.05\% frequency.
-
-After the letters are ranked, we then rank each physical key (\ct{KeyName}).
-If a character requires more than one physical key, we divide up the score of the \ct{Char} evenly across all physical keys.
-
-We then place each key on each finger --- this is the \ct{layoutFinger} structure that will be inside a \ct{Layout} type.
-Each finger has a list of open positions, and each finger and position are ranked; the placement starts first with the left hand side, and alternates between the left and right finger.
-The physical key placement is subject to constraints, such as ``this physical key is already on this ColRow'', etc.
-
-After each physical key placement, we also run a bigram test.
-The bigram test is as follows: select all bigrams that involve the last-positioned physical key; if we end up using the same finger for any of these bigrams, place it on the next-available-ranked finger-colrow, and run the same bigram test again.
-If the second bigram test results in a lesser or equal bigram penalty score, keep this second configuration; if this second configuration is worse, then discard it and simply use the first configuration.
-The last key has no rights, and will always use whatever last finger-colrow is available.
-The bigram penalty score is set as the frequency of the bigram relative to the other bigrams (if it is 10.5\% then it is 105 points), and this number is set against the sorted physical key rank of each of the keys involved in the bigram, added (if ``t'' is 20 and ``h'' is 15, then 35).
-The bigram score must be at least 2 times greater than the letter frequency score in order for it to be deemed important enough to make us ``skip'' the currently-considered colrow for the physical key.
-This ``2 times greater'' number is custom-set.
-
-\ct{CharNameHash} is the hash we use to find which \ct{KeyName}s need to be pressed in order to generate a given \ct{Char}.
-
-\ct{lSorted} is the Chars sorted by frequency, and then reversed so that the most frequent letters come first.
-To do this, we call \ct{reverseSortByVal} where we bake in a logic of sorting and reversing into one function by running \ct{compare} against the given two arguments in reverse order (take in ``a'' and ``b'' but evaluate ``b'' against ``a'').
-
 \subsection{Stochastic Optimization via Simulated Annealing}
 
 \ct{energy} is probably the most important function.
@@ -304,9 +278,7 @@ penalizeHJKL kl = penalizeHL + penalizeJK + bonusHJKL
 		| sameHandHL = -2000
 		| sameHandJK = -2000
 		| otherwise = 0
-\end{code}
 
-\begin{code}
 penalizeChar
   :: (HashL, FreqMax)
   -> HashLW
